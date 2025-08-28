@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,6 +30,15 @@ export default function QuizPlayEnhanced() {
   const [showMidwayWarning, setShowMidwayWarning] = useState(false);
   const [hasShownWarning, setHasShownWarning] = useState(false);
   const [feedbackAnimation, setFeedbackAnimation] = useState('');
+  const [diamondOverlay, setDiamondOverlay] = useState({ show: false, amount: 0, type: '' });
+  const [showWinAnimation, setShowWinAnimation] = useState(false);
+  
+  // Sound refs
+  const startSoundRef = useRef<HTMLAudioElement | null>(null);
+  const correctSoundRef = useRef<HTMLAudioElement | null>(null);
+  const incorrectSoundRef = useRef<HTMLAudioElement | null>(null);
+  const winSoundRef = useRef<HTMLAudioElement | null>(null);
+  const quitSoundRef = useRef<HTMLAudioElement | null>(null);
 
   if (!quiz) {
     navigate('/quizzes');
@@ -44,7 +53,21 @@ export default function QuizPlayEnhanced() {
   const currentReward = quiz.rewardProgression.find(r => r.questionNumber === currentQuestionIndex + 1);
   const canQuit = currentQuestionIndex >= midwayPoint;
 
-  // Timer effect
+  // Initialize sounds and play start sound
+  useEffect(() => {
+    // Create audio objects for game sounds
+    startSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
+    correctSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
+    incorrectSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
+    winSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
+    quitSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
+    
+    // Play start sound
+    if (startSoundRef.current) {
+      startSoundRef.current.volume = 0.3;
+      startSoundRef.current.play().catch(() => {});
+    }
+  }, []);
   useEffect(() => {
     if (timeLeft > 0 && !isAnswered) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
@@ -81,6 +104,17 @@ export default function QuizPlayEnhanced() {
       setFeedbackAnimation('animate-pulse bg-green-100');
       const reward = currentReward?.correctReward || 0;
       const newBalance = playerBalance + reward;
+      
+      // Play correct sound
+      if (correctSoundRef.current) {
+        correctSoundRef.current.volume = 0.4;
+        correctSoundRef.current.play().catch(() => {});
+      }
+      
+      // Show diamond overlay animation
+      setDiamondOverlay({ show: true, amount: reward, type: 'correct' });
+      setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
+      
       if (newBalance <= MAX_WALLET_BALANCE) {
         setAccumulatedReward(prev => prev + reward);
         toast({
@@ -98,6 +132,17 @@ export default function QuizPlayEnhanced() {
     } else {
       setFeedbackAnimation('animate-shake bg-red-100');
       setPlayerBalance(prev => prev - quiz.penaltyAmount);
+      
+      // Play incorrect sound
+      if (incorrectSoundRef.current) {
+        incorrectSoundRef.current.volume = 0.4;
+        incorrectSoundRef.current.play().catch(() => {});
+      }
+      
+      // Show penalty overlay animation
+      setDiamondOverlay({ show: true, amount: quiz.penaltyAmount, type: 'incorrect' });
+      setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
+      
       toast({
         title: "Incorrect ❌",
         description: `${formatDiamonds(quiz.penaltyAmount)} deducted from your balance`,
@@ -118,7 +163,7 @@ export default function QuizPlayEnhanced() {
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      // Quiz completed, navigate to results
+      // Quiz completed
       const correctCount = answers.reduce((count, answer, index) => {
         return count + (answer === mockQuestions[index]?.correctOption ? 1 : 0);
       }, 0);
@@ -129,16 +174,37 @@ export default function QuizPlayEnhanced() {
       
       const finalReward = finalCorrectCount > midwayPoint ? accumulatedReward : 0;
       
-      navigate(`/quiz/${quizId}/results`, { 
-        state: { 
-          score: finalCorrectCount,
-          totalQuestions,
-          answers: [...answers, selectedAnswer || -1],
-          quizTitle: quiz.title,
-          finalReward: finalReward,
-          balanceChange: finalReward - (quiz.entryFee + ((totalQuestions - finalCorrectCount) * quiz.penaltyAmount))
+      // Show win animation and play sound if all questions correct
+      if (finalCorrectCount === totalQuestions) {
+        setShowWinAnimation(true);
+        if (winSoundRef.current) {
+          winSoundRef.current.volume = 0.5;
+          winSoundRef.current.play().catch(() => {});
         }
-      });
+        setTimeout(() => {
+          navigate(`/quiz/${quizId}/results`, { 
+            state: { 
+              score: finalCorrectCount,
+              totalQuestions,
+              answers: [...answers, selectedAnswer || -1],
+              quizTitle: quiz.title,
+              finalReward: finalReward,
+              balanceChange: finalReward - (quiz.entryFee + ((totalQuestions - finalCorrectCount) * quiz.penaltyAmount))
+            }
+          });
+        }, 2000);
+      } else {
+        navigate(`/quiz/${quizId}/results`, { 
+          state: { 
+            score: finalCorrectCount,
+            totalQuestions,
+            answers: [...answers, selectedAnswer || -1],
+            quizTitle: quiz.title,
+            finalReward: finalReward,
+            balanceChange: finalReward - (quiz.entryFee + ((totalQuestions - finalCorrectCount) * quiz.penaltyAmount))
+          }
+        });
+      }
     }
   };
 
@@ -150,6 +216,12 @@ export default function QuizPlayEnhanced() {
         variant: "destructive"
       });
       return;
+    }
+
+    // Play quit sound
+    if (quitSoundRef.current) {
+      quitSoundRef.current.volume = 0.4;
+      quitSoundRef.current.play().catch(() => {});
     }
 
     const currentCorrect = answers.reduce((count, answer, index) => {
@@ -191,7 +263,32 @@ export default function QuizPlayEnhanced() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Diamond Overlay Animation */}
+      {diamondOverlay.show && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center">
+          <div className={`text-6xl font-bold animate-bounce ${
+            diamondOverlay.type === 'correct' 
+              ? 'text-green-500 animate-pulse' 
+              : 'text-red-500 animate-shake'
+          }`}>
+            {diamondOverlay.type === 'correct' ? '+' : '-'}{formatDiamonds(diamondOverlay.amount)}
+          </div>
+        </div>
+      )}
+
+      {/* Win Animation Overlay */}
+      {showWinAnimation && (
+        <div className="fixed inset-0 z-50 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 flex items-center justify-center animate-pulse">
+          <div className="text-center text-white">
+            <div className="text-8xl mb-4 animate-bounce">🎉</div>
+            <div className="text-6xl font-bold mb-2 animate-pulse">PERFECT!</div>
+            <div className="text-3xl font-semibold animate-bounce">All Questions Correct!</div>
+            <div className="text-xl mt-4 animate-pulse">Redirecting to results...</div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className={`bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6 transition-all duration-500 ${feedbackAnimation}`}>
         <div className="flex items-center justify-between mb-4">
