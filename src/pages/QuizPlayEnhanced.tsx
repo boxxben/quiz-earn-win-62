@@ -33,12 +33,43 @@ export default function QuizPlayEnhanced() {
   const [diamondOverlay, setDiamondOverlay] = useState({ show: false, amount: 0, type: '' });
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   
-  // Sound refs
-  const startSoundRef = useRef<HTMLAudioElement | null>(null);
-  const correctSoundRef = useRef<HTMLAudioElement | null>(null);
-  const incorrectSoundRef = useRef<HTMLAudioElement | null>(null);
-  const winSoundRef = useRef<HTMLAudioElement | null>(null);
-  const quitSoundRef = useRef<HTMLAudioElement | null>(null);
+  // Sound functions
+  const playSound = (frequency: number, duration: number, type: 'sine' | 'square' | 'sawtooth' = 'sine') => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = type;
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + duration);
+    } catch (error) {
+      // Fallback if Web Audio API is not supported
+      console.log('Audio not supported');
+    }
+  };
+
+  const playStartSound = () => playSound(440, 0.5, 'sine');
+  const playCorrectSound = () => {
+    playSound(523, 0.2, 'sine'); // C5
+    setTimeout(() => playSound(659, 0.2, 'sine'), 100); // E5
+  };
+  const playIncorrectSound = () => playSound(220, 0.5, 'square');
+  const playWinSound = () => {
+    playSound(523, 0.3, 'sine'); // C5
+    setTimeout(() => playSound(659, 0.3, 'sine'), 200); // E5
+    setTimeout(() => playSound(784, 0.3, 'sine'), 400); // G5
+    setTimeout(() => playSound(1047, 0.5, 'sine'), 600); // C6
+  };
+  const playQuitSound = () => playSound(196, 0.8, 'sawtooth');
 
   if (!quiz) {
     navigate('/quizzes');
@@ -53,20 +84,9 @@ export default function QuizPlayEnhanced() {
   const currentReward = quiz.rewardProgression.find(r => r.questionNumber === currentQuestionIndex + 1);
   const canQuit = currentQuestionIndex >= midwayPoint;
 
-  // Initialize sounds and play start sound
+  // Play start sound
   useEffect(() => {
-    // Create audio objects for game sounds
-    startSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
-    correctSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
-    incorrectSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
-    winSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
-    quitSoundRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N+QQAoUXrTp66hVFApGn+DyvmEaByV+zPLWgDIFJoHN8deKOAgZZ7zv4ppOEgxOqOLwtGQdBzuO2vLNeSsFJH');
-    
-    // Play start sound
-    if (startSoundRef.current) {
-      startSoundRef.current.volume = 0.3;
-      startSoundRef.current.play().catch(() => {});
-    }
+    playStartSound();
   }, []);
   useEffect(() => {
     if (timeLeft > 0 && !isAnswered) {
@@ -106,10 +126,7 @@ export default function QuizPlayEnhanced() {
       const newBalance = playerBalance + reward;
       
       // Play correct sound
-      if (correctSoundRef.current) {
-        correctSoundRef.current.volume = 0.4;
-        correctSoundRef.current.play().catch(() => {});
-      }
+      playCorrectSound();
       
       // Show diamond overlay animation
       setDiamondOverlay({ show: true, amount: reward, type: 'correct' });
@@ -134,10 +151,7 @@ export default function QuizPlayEnhanced() {
       setPlayerBalance(prev => prev - quiz.penaltyAmount);
       
       // Play incorrect sound
-      if (incorrectSoundRef.current) {
-        incorrectSoundRef.current.volume = 0.4;
-        incorrectSoundRef.current.play().catch(() => {});
-      }
+      playIncorrectSound();
       
       // Show penalty overlay animation
       setDiamondOverlay({ show: true, amount: quiz.penaltyAmount, type: 'incorrect' });
@@ -177,10 +191,7 @@ export default function QuizPlayEnhanced() {
       // Show win animation and play sound if all questions correct
       if (finalCorrectCount === totalQuestions) {
         setShowWinAnimation(true);
-        if (winSoundRef.current) {
-          winSoundRef.current.volume = 0.5;
-          winSoundRef.current.play().catch(() => {});
-        }
+        playWinSound();
         setTimeout(() => {
           navigate(`/quiz/${quizId}/results`, { 
             state: { 
@@ -192,7 +203,7 @@ export default function QuizPlayEnhanced() {
               balanceChange: finalReward - (quiz.entryFee + ((totalQuestions - finalCorrectCount) * quiz.penaltyAmount))
             }
           });
-        }, 2000);
+        }, 3000);
       } else {
         navigate(`/quiz/${quizId}/results`, { 
           state: { 
@@ -219,10 +230,7 @@ export default function QuizPlayEnhanced() {
     }
 
     // Play quit sound
-    if (quitSoundRef.current) {
-      quitSoundRef.current.volume = 0.4;
-      quitSoundRef.current.play().catch(() => {});
-    }
+    playQuitSound();
 
     const currentCorrect = answers.reduce((count, answer, index) => {
       return count + (answer === mockQuestions[index]?.correctOption ? 1 : 0);
@@ -280,11 +288,27 @@ export default function QuizPlayEnhanced() {
       {/* Win Animation Overlay */}
       {showWinAnimation && (
         <div className="fixed inset-0 z-50 bg-gradient-to-r from-yellow-400 via-amber-500 to-yellow-600 flex items-center justify-center animate-pulse">
-          <div className="text-center text-white">
-            <div className="text-8xl mb-4 animate-bounce">🎉</div>
-            <div className="text-6xl font-bold mb-2 animate-pulse">PERFECT!</div>
-            <div className="text-3xl font-semibold animate-bounce">All Questions Correct!</div>
-            <div className="text-xl mt-4 animate-pulse">Redirecting to results...</div>
+          <div className="text-center text-white relative">
+            {/* Explosion effect */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-32 h-32 bg-white rounded-full animate-ping opacity-30"></div>
+              <div className="absolute w-48 h-48 bg-yellow-300 rounded-full animate-ping opacity-20 animation-delay-200"></div>
+              <div className="absolute w-64 h-64 bg-amber-300 rounded-full animate-ping opacity-10 animation-delay-400"></div>
+            </div>
+            
+            {/* Content */}
+            <div className="relative z-10">
+              <div className="text-8xl mb-4 animate-bounce">🎉</div>
+              <div className="text-6xl font-bold mb-2 animate-pulse drop-shadow-lg">PERFECT!</div>
+              <div className="text-3xl font-semibold animate-bounce drop-shadow-md">All Questions Correct!</div>
+              <div className="text-xl mt-4 animate-pulse">Redirecting to results...</div>
+              
+              {/* Floating confetti */}
+              <div className="absolute top-0 left-1/4 text-4xl animate-bounce animation-delay-100">🎊</div>
+              <div className="absolute top-10 right-1/4 text-3xl animate-bounce animation-delay-300">✨</div>
+              <div className="absolute bottom-20 left-1/3 text-5xl animate-bounce animation-delay-500">🏆</div>
+              <div className="absolute bottom-10 right-1/3 text-3xl animate-bounce animation-delay-700">💎</div>
+            </div>
           </div>
         </div>
       )}
