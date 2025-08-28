@@ -10,6 +10,7 @@ import { Clock, ArrowRight, TrendUp, Warning } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds } from '@/lib/currency';
+import { MAX_WALLET_BALANCE } from '@/lib/constants';
 
 export default function QuizPlayEnhanced() {
   const { quizId } = useParams();
@@ -80,7 +81,7 @@ export default function QuizPlayEnhanced() {
       setFeedbackAnimation('animate-pulse bg-green-100');
       const reward = currentReward?.correctReward || 0;
       const newBalance = playerBalance + reward;
-      if (newBalance <= 2000) {
+      if (newBalance <= MAX_WALLET_BALANCE) {
         setAccumulatedReward(prev => prev + reward);
         toast({
           title: "Correct! ✅",
@@ -90,7 +91,7 @@ export default function QuizPlayEnhanced() {
       } else {
         toast({
           title: "Wallet Limit Reached! ⚠️",
-          description: "You can't hold more than 2000 diamonds",
+          description: `You can't hold more than ${MAX_WALLET_BALANCE} diamonds`,
           variant: "destructive"
         });
       }
