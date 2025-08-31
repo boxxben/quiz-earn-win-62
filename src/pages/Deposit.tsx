@@ -74,71 +74,90 @@ export default function Deposit() {
       return;
     }
 
-    const handler = (window as any).PaystackPop.setup({
-      key: "pk_test_4d4685ec21ebcb1943cfa732676dd48feb2db4f7",
-      email: user.email,
-      amount: depositAmount * 100, // Convert to kobo
-      currency: "NGN",
-      callback: async function (response: any) {
-        setIsLoading(true);
-        try {
-          // Import supabase client
-          const { supabase } = await import('@/integrations/supabase/client');
-          
-          const { data, error } = await supabase.functions.invoke('verify-payment', {
-            body: {
-              reference: response.reference,
-              userId: user.id,
-              amount: depositAmount,
-            },
-          });
+    // Check if Paystack is loaded
+    if (!(window as any).PaystackPop) {
+      toast({
+        title: 'Payment Error',
+        description: 'Paystack payment system is not loaded. Please refresh the page and try again.',
+        variant: 'destructive'
+      });
+      return;
+    }
 
-          if (error) throw error;
-
-          if (data.status === "success") {
-            // Update local user balance
-            updateUser({ 
-              balance: data.newBalance
-            });
+    try {
+      const handler = (window as any).PaystackPop.setup({
+        key: "pk_test_4d4685ec21ebcb1943cfa732676dd48feb2db4f7",
+        email: user.email,
+        amount: depositAmount * 100, // Convert to kobo
+        currency: "NGN",
+        callback: async function (response: any) {
+          setIsLoading(true);
+          try {
+            // Import supabase client
+            const { supabase } = await import('@/integrations/supabase/client');
             
-            // Record transaction locally
-            addTransaction({
-              type: 'deposit',
-              amount: data.diamondsAdded,
-              status: 'completed',
-              description: `Wallet deposit via Paystack - ₦${depositAmount.toLocaleString()}`
+            const { data, error } = await supabase.functions.invoke('verify-payment', {
+              body: {
+                reference: response.reference,
+                userId: user.id,
+                amount: depositAmount,
+              },
             });
 
+            if (error) throw error;
+
+            if (data.status === "success") {
+              // Update local user balance
+              updateUser({ 
+                balance: data.newBalance
+              });
+              
+              // Record transaction locally
+              addTransaction({
+                type: 'deposit',
+                amount: data.diamondsAdded,
+                status: 'completed',
+                description: `Wallet deposit via Paystack - ₦${depositAmount.toLocaleString()}`
+              });
+
+              toast({
+                title: '✅ Deposit Successful!',
+                description: `₦${depositAmount.toLocaleString()} (${formatDiamonds(data.diamondsAdded)}) added to wallet`,
+              });
+              
+              navigate('/wallet');
+            } else {
+              throw new Error(data.message || "Payment verification failed");
+            }
+          } catch (error: any) {
+            console.error('Payment verification error:', error);
             toast({
-              title: '✅ Deposit Successful!',
-              description: `₦${depositAmount.toLocaleString()} (${formatDiamonds(data.diamondsAdded)}) added to wallet`,
+              title: '❌ Payment Verification Failed',
+              description: error.message || 'Please contact support if money was deducted.',
+              variant: 'destructive'
             });
-            
-            navigate('/wallet');
-          } else {
-            throw new Error(data.message || "Payment verification failed");
+          } finally {
+            setIsLoading(false);
           }
-        } catch (error: any) {
-          console.error('Payment verification error:', error);
+        },
+        onClose: function () {
           toast({
-            title: '❌ Payment Verification Failed',
-            description: error.message || 'Please contact support if money was deducted.',
+            title: 'Transaction Cancelled',
+            description: 'Payment was cancelled by user',
             variant: 'destructive'
           });
-        } finally {
-          setIsLoading(false);
-        }
-      },
-      onClose: function () {
-        toast({
-          title: 'Transaction Cancelled',
-          description: 'Payment was cancelled by user',
-          variant: 'destructive'
-        });
-      },
-    });
+        },
+      });
 
-    handler.openIframe();
+      handler.openIframe();
+    } catch (error: any) {
+      console.error('Paystack setup error:', error);
+      toast({
+        title: 'Payment Setup Error',
+        description: 'Failed to initialize payment. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
