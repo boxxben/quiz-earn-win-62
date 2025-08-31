@@ -34,13 +34,11 @@ export default function Deposit() {
     setAmount(value.toString());
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const payWithPaystack = () => {
     const depositAmount = parseInt(amount);
     const diamondsToAdd = nairaTodiamonds(depositAmount);
-    
-    if (depositAmount < 100) {
+
+    if (!amount || depositAmount < 100) {
       toast({
         title: 'Invalid Amount',
         description: 'Minimum deposit is ₦100',
@@ -67,41 +65,85 @@ export default function Deposit() {
       return;
     }
 
-    if (depositAmount > maxDepositNaira) {
+    if (!user?.email) {
       toast({
-        title: 'Amount Too Large',
-        description: `Maximum you can deposit: ₦${maxDepositNaira.toLocaleString()}`,
+        title: 'Authentication Error',
+        description: 'User email not found. Please log in again.',
         variant: 'destructive'
       });
       return;
     }
 
-    setIsLoading(true);
-    
-    // Mock payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Update user balance (convert naira to diamonds)
-    const newBalance = Math.min(currentBalance + diamondsToAdd, MAX_WALLET_BALANCE);
-    updateUser({ 
-      balance: newBalance
+    const handler = (window as any).PaystackPop.setup({
+      key: "pk_test_4d4685ec21ebcb1943cfa732676dd48feb2db4f7",
+      email: user.email,
+      amount: depositAmount * 100, // Convert to kobo
+      currency: "NGN",
+      callback: async function (response: any) {
+        setIsLoading(true);
+        try {
+          // Import supabase client
+          const { supabase } = await import('@/integrations/supabase/client');
+          
+          const { data, error } = await supabase.functions.invoke('verify-payment', {
+            body: {
+              reference: response.reference,
+              userId: user.id,
+              amount: depositAmount,
+            },
+          });
+
+          if (error) throw error;
+
+          if (data.status === "success") {
+            // Update local user balance
+            updateUser({ 
+              balance: data.newBalance
+            });
+            
+            // Record transaction locally
+            addTransaction({
+              type: 'deposit',
+              amount: data.diamondsAdded,
+              status: 'completed',
+              description: `Wallet deposit via Paystack - ₦${depositAmount.toLocaleString()}`
+            });
+
+            toast({
+              title: '✅ Deposit Successful!',
+              description: `₦${depositAmount.toLocaleString()} (${formatDiamonds(data.diamondsAdded)}) added to wallet`,
+            });
+            
+            navigate('/wallet');
+          } else {
+            throw new Error(data.message || "Payment verification failed");
+          }
+        } catch (error: any) {
+          console.error('Payment verification error:', error);
+          toast({
+            title: '❌ Payment Verification Failed',
+            description: error.message || 'Please contact support if money was deducted.',
+            variant: 'destructive'
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      onClose: function () {
+        toast({
+          title: 'Transaction Cancelled',
+          description: 'Payment was cancelled by user',
+          variant: 'destructive'
+        });
+      },
     });
-    
-    // Record transaction
-    addTransaction({
-      type: 'deposit',
-      amount: diamondsToAdd,
-      status: 'completed',
-      description: `Wallet deposit via Paystack - ₦${depositAmount.toLocaleString()}`
-    });
-    
-    toast({
-      title: 'Deposit Successful!',
-      description: `${formatNaira(depositAmount)} (${formatDiamonds(nairaTodiamonds(depositAmount))}) has been added to your wallet`,
-    });
-    
-    setIsLoading(false);
-    navigate('/wallet');
+
+    handler.openIframe();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    payWithPaystack();
   };
 
   return (

@@ -14,7 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar: string | null
+          balance: number
+          country: string | null
+          created_at: string
+          email: string
+          id: string
+          is_admin: boolean | null
+          name: string
+          quizzes_played: number
+          quizzes_won: number
+          rank: number
+          total_earnings: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar?: string | null
+          balance?: number
+          country?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          is_admin?: boolean | null
+          name: string
+          quizzes_played?: number
+          quizzes_won?: number
+          rank?: number
+          total_earnings?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar?: string | null
+          balance?: number
+          country?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          is_admin?: boolean | null
+          name?: string
+          quizzes_played?: number
+          quizzes_won?: number
+          rank?: number
+          total_earnings?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          paystack_reference: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          paystack_reference?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          paystack_reference?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
