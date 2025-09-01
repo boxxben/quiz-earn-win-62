@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle, XCircle, Clock } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminPayments() {
   const { user, hydrated } = useAuth();
@@ -20,27 +21,44 @@ export default function AdminPayments() {
     }
   }, [hydrated, user?.isAdmin, navigate]);
 
-  // Mock withdrawals for now
   React.useEffect(() => {
-    setWithdrawals([]);
-  }, []);
+    const fetchWithdrawals = async () => {
+      const { data } = await supabase.from('transactions').select('*').eq('type', 'withdrawal');
+      setWithdrawals(data || []);
+    };
+    
+    if (user?.isAdmin) {
+      fetchWithdrawals();
+    }
+  }, [user?.isAdmin]);
 
   if (!hydrated) return null;
   if (!user?.isAdmin) return null;
 
   const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
   
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const formatDate = (date: string) => {
+    const d = new Date(date);
+    return d.toLocaleDateString() + ' at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleApproval = (withdrawalId: string, action: 'approve' | 'reject') => {
-    console.log(`${action} withdrawal ${withdrawalId}`);
-    toast({
-      title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-      description: `Withdrawal request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
-      variant: action === 'approve' ? 'default' : 'destructive'
-    });
+  const handleApproval = async (withdrawalId: string, action: 'approve' | 'reject') => {
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: action === 'approve' ? 'approved' : 'rejected' })
+      .eq('id', withdrawalId);
+      
+    if (!error) {
+      setWithdrawals(prev => prev.map(w => 
+        w.id === withdrawalId ? { ...w, status: action === 'approve' ? 'approved' : 'rejected' } : w
+      ));
+      
+      toast({
+        title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
+        description: `Withdrawal request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+        variant: action === 'approve' ? 'default' : 'destructive'
+      });
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -74,19 +92,19 @@ export default function AdminPayments() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{mockWithdrawals.filter(w => w.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending').length}</p>
               <p className="text-sm text-muted-foreground">Pending</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{mockWithdrawals.filter(w => w.status === 'approved').length}</p>
+              <p className="text-2xl font-bold text-green-600">{withdrawals.filter(w => w.status === 'approved').length}</p>
               <p className="text-sm text-muted-foreground">Approved</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-red-600">{mockWithdrawals.filter(w => w.status === 'rejected').length}</p>
+              <p className="text-2xl font-bold text-red-600">{withdrawals.filter(w => w.status === 'rejected').length}</p>
               <p className="text-sm text-muted-foreground">Rejected</p>
             </CardContent>
           </Card>
@@ -95,11 +113,11 @@ export default function AdminPayments() {
         {/* Withdrawal Requests */}
         <Card>
           <CardHeader>
-            <CardTitle>Withdrawal Requests ({mockWithdrawals.length})</CardTitle>
+            <CardTitle>Withdrawal Requests ({withdrawals.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {mockWithdrawals.map((withdrawal) => (
+              {withdrawals.map((withdrawal) => (
                 <div key={withdrawal.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
@@ -110,19 +128,19 @@ export default function AdminPayments() {
                       
                       <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                         <div>
-                          <p className="text-muted-foreground">Bank Details</p>
-                          <p className="font-medium">{withdrawal.bankName}</p>
-                          <p className="text-muted-foreground">****{withdrawal.accountNumber.slice(-4)}</p>
+                          <p className="text-muted-foreground">User ID</p>
+                          <p className="font-medium">{withdrawal.user_id?.slice(0, 8)}...</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Request Date</p>
-                          <p className="font-medium">{formatDate(withdrawal.requestDate)}</p>
+                          <p className="font-medium">{formatDate(withdrawal.created_at)}</p>
                         </div>
                       </div>
                       
-                      {withdrawal.processedDate && (
-                        <div className="text-xs text-muted-foreground">
-                          <p>Processed: {formatDate(withdrawal.processedDate)}</p>
+                      {withdrawal.description && (
+                        <div className="text-sm mb-2">
+                          <p className="text-muted-foreground">Description</p>
+                          <p className="font-medium">{withdrawal.description}</p>
                         </div>
                       )}
                     </div>
@@ -152,7 +170,7 @@ export default function AdminPayments() {
               ))}
             </div>
             
-            {mockWithdrawals.length === 0 && (
+            {withdrawals.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No withdrawal requests found</p>
               </div>

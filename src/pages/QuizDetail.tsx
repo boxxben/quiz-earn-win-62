@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { formatCurrency } from '@/lib/currency';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, 
   Clock, 
@@ -26,7 +27,16 @@ export default function QuizDetail() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
   
-  const quiz = mockQuizzes.find(q => q.id === quizId);
+  const [quiz, setQuiz] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchQuiz = async () => {
+      const { data } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
+      setQuiz(data);
+    };
+    
+    fetchQuiz();
+  }, [quizId]);
   
   if (!quiz) {
     return (

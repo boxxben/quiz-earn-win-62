@@ -25,6 +25,8 @@ export default function AdminDashboard() {
     pendingWithdrawals: 0,
     totalEarnings: 0
   });
+  const [topUsers, setTopUsers] = React.useState<any[]>([]);
+  const [pendingWithdrawals, setPendingWithdrawals] = React.useState<any[]>([]);
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -38,13 +40,21 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       const { data: profiles } = await supabase.from('profiles').select('*');
       const { data: quizzes } = await supabase.from('quizzes').select('*').eq('status', 'active');
+      const { data: transactions } = await supabase.from('transactions').select('*').eq('status', 'pending').eq('type', 'withdrawal');
       
       setStats({
         totalUsers: profiles?.length || 0,
         activeQuizzes: quizzes?.length || 0,
-        pendingWithdrawals: 0, // This would come from a withdrawals table
+        pendingWithdrawals: transactions?.length || 0,
         totalEarnings: profiles?.reduce((sum, p) => sum + (p.total_earnings || 0), 0) || 0
       });
+
+      // Get top 5 users for recent activity
+      const topProfiles = profiles?.sort((a, b) => (b.total_earnings || 0) - (a.total_earnings || 0)).slice(0, 5) || [];
+      setTopUsers(topProfiles);
+
+      // Set pending withdrawals (mock for now)
+      setPendingWithdrawals(transactions?.slice(0, 3) || []);
     };
 
     if (user?.isAdmin) {
@@ -61,13 +71,6 @@ export default function AdminDashboard() {
   }
 
   const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
-  
-  const stats = {
-    totalUsers: 1247,
-    activeQuizzes: 12,
-    totalEarnings: 2450000,
-    pendingWithdrawals: 8
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -193,29 +196,29 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockLeaderboard.slice(0, 5).map((user, index) => (
-                <div key={user.userId} className="flex items-center justify-between p-3 border rounded-lg">
+              {topUsers.length > 0 ? topUsers.map((user, index) => (
+                <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <img
-                      src={user.avatar}
-                      alt={user.userName}
-                      className="w-8 h-8 rounded-full"
-                    />
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <span className="text-sm font-medium">{user.name?.charAt(0) || 'U'}</span>
+                    </div>
                     <div>
-                      <p className="font-medium">{user.userName}</p>
+                      <p className="font-medium">{user.name || 'Unknown User'}</p>
                       <p className="text-sm text-muted-foreground">
-                        {user.points.toLocaleString()} points
+                        {user.quizzes_won || 0} quizzes won
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold text-accent">
-                      {formatCurrency(user.totalEarnings)}
+                      {formatCurrency(user.total_earnings || 0)}
                     </p>
                     <p className="text-xs text-muted-foreground">Total Earned</p>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-center text-muted-foreground py-4">No users found</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -233,12 +236,12 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {mockWithdrawals.filter(w => w.status === 'pending').map(withdrawal => (
+              {pendingWithdrawals.length > 0 ? pendingWithdrawals.map(withdrawal => (
                 <div key={withdrawal.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <p className="font-medium">{formatCurrency(withdrawal.amount)}</p>
+                    <p className="font-medium">{formatCurrency(withdrawal.amount || 0)}</p>
                     <p className="text-sm text-muted-foreground">
-                      {withdrawal.bankName} - ****{withdrawal.accountNumber.slice(-4)}
+                      Withdrawal Request
                     </p>
                   </div>
                   <div className="flex space-x-2">
@@ -250,7 +253,9 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-center text-muted-foreground py-4">No pending withdrawals</p>
+              )}
             </div>
           </CardContent>
         </Card>

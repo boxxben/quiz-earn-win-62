@@ -63,7 +63,7 @@ export default function QuizPlay() {
     } else {
       // Quiz completed, navigate to results
       const correctCount = answers.reduce((count, answer, index) => {
-        return count + (answer === mockQuestions[index]?.correctOption ? 1 : 0);
+        return count + (answer === quiz.questions[index]?.correctOption ? 1 : 0);
       }, 0);
       
       // Add current answer if selected
