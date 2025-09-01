@@ -38,6 +38,8 @@ export default function Deposit() {
     const depositAmount = parseInt(amount);
     const diamondsToAdd = nairaTodiamonds(depositAmount);
 
+    console.log('Initiating payment...', { user, depositAmount, amount });
+
     if (!amount || depositAmount < 100) {
       toast({
         title: 'Invalid Amount',
@@ -65,7 +67,11 @@ export default function Deposit() {
       return;
     }
 
-    if (!user?.email) {
+    // Use user email or fallback to session email
+    const userEmail = user?.email || (window as any).supabaseSession?.user?.email;
+    const userId = user?.id || (window as any).supabaseSession?.user?.id;
+    
+    if (!userEmail) {
       toast({
         title: 'Authentication Error',
         description: 'User email not found. Please log in again.',
@@ -84,13 +90,16 @@ export default function Deposit() {
       return;
     }
 
+    console.log('Setting up Paystack payment...', { userEmail, userId, depositAmount });
+
     try {
       const handler = (window as any).PaystackPop.setup({
         key: "pk_test_4d4685ec21ebcb1943cfa732676dd48feb2db4f7",
-        email: user.email,
+        email: userEmail,
         amount: depositAmount * 100, // Convert to kobo
         currency: "NGN",
         callback: async function (response: any) {
+          console.log('Payment callback received:', response);
           setIsLoading(true);
           try {
             // Import supabase client
@@ -99,7 +108,7 @@ export default function Deposit() {
             const { data, error } = await supabase.functions.invoke('verify-payment', {
               body: {
                 reference: response.reference,
-                userId: user.id,
+                userId: userId,
                 amount: depositAmount,
               },
             });
