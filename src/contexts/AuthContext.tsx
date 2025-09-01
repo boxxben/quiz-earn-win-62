@@ -1,122 +1,165 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User as AuthUser, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
-import { MAX_WALLET_BALANCE } from '@/lib/constants';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, country: string) => Promise<void>;
-  logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  session: Session | null;
+  authUser: AuthUser | null;
+  login: (email: string, password: string) => Promise<{ error?: any }>;
+  register: (name: string, email: string, password: string, country: string) => Promise<{ error?: any }>;
+  logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => Promise<void>;
   isLoading: boolean;
   hydrated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for demo
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    country: 'Nigeria',
-    balance: 1500, // Within 2000 limit
-    totalEarnings: 4500,
-    quizzesPlayed: 23,
-    quizzesWon: 12,
-    rank: 1,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John'
-  },
-  {
-    id: '2',
-    name: 'Admin User',
-    email: 'admin@learn2earn.com',
-    country: 'Nigeria',
-    balance: MAX_WALLET_BALANCE, // Admin gets max limit
-    totalEarnings: 10000,
-    quizzesPlayed: 50,
-    quizzesWon: 30,
-    rank: 1,
-    isAdmin: true,
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin'
-  }
-];
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // Check for saved user on mount
+  // Initialize auth state
   useEffect(() => {
-    const savedUser = localStorage.getItem('learn2earn_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setHydrated(true);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setAuthUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Fetch user profile
+          setTimeout(async () => {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+
+            if (profile) {
+              setUser({
+                id: profile.user_id,
+                name: profile.name,
+                email: profile.email,
+                country: profile.country,
+                avatar: profile.avatar,
+                isAdmin: profile.is_admin,
+                balance: profile.balance,
+                totalEarnings: profile.total_earnings,
+                quizzesPlayed: profile.quizzes_played,
+                quizzesWon: profile.quizzes_won,
+                rank: profile.rank
+              });
+            }
+          }, 0);
+        } else {
+          setUser(null);
+        }
+        
+        setHydrated(true);
+      }
+    );
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setAuthUser(session?.user ?? null);
+      if (!session) {
+        setHydrated(true);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    // Mock login - find user by email
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser) {
-      setUser(foundUser);
-      localStorage.setItem('learn2earn_user', JSON.stringify(foundUser));
-    } else {
-      throw new Error('Invalid credentials');
-    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
     setIsLoading(false);
+    return { error };
   };
 
   const register = async (name: string, email: string, password: string, country: string) => {
     setIsLoading(true);
-    // Mock registration
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     
-    const newUser: User = {
-      id: Date.now().toString(),
-      name,
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { data, error } = await supabase.auth.signUp({
       email,
-      country,
-      balance: Math.min(1000, MAX_WALLET_BALANCE), // Welcome bonus with limit check
-      totalEarnings: 0,
-      quizzesPlayed: 0,
-      quizzesWon: 0,
-      rank: 999,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
-    };
-    
-    setUser(newUser);
-    localStorage.setItem('learn2earn_user', JSON.stringify(newUser));
-    setIsLoading(false);
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('learn2earn_user');
-  };
-
-  const updateUser = (updates: Partial<User>) => {
-    if (user) {
-      const updatedUser = { ...user, ...updates };
-      
-      // Enforce wallet balance limit
-      if (updatedUser.balance && updatedUser.balance > MAX_WALLET_BALANCE) {
-        updatedUser.balance = MAX_WALLET_BALANCE;
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          name,
+          country
+        }
       }
-      
-      setUser(updatedUser);
-      localStorage.setItem('learn2earn_user', JSON.stringify(updatedUser));
+    });
+
+    if (!error && data.user) {
+      // Create profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: data.user.id,
+          name,
+          email,
+          country,
+          balance: 1000, // Starting balance
+          total_earnings: 0,
+          quizzes_played: 0,
+          quizzes_won: 0,
+          rank: 999
+        });
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+      }
+    }
+    
+    setIsLoading(false);
+    return { error };
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setAuthUser(null);
+  };
+
+  const updateUser = async (updates: Partial<User>) => {
+    if (user && authUser) {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: updates.name,
+          country: updates.country,
+          avatar: updates.avatar
+        })
+        .eq('user_id', authUser.id);
+
+      if (!error) {
+        setUser({ ...user, ...updates });
+      }
     }
   };
 
   return (
     <AuthContext.Provider value={{
       user,
+      session,
+      authUser,
       login,
       register,
       logout,

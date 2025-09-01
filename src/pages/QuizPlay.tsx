@@ -3,14 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { mockQuizzes, mockQuestions } from '@/data/mockData';
+import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { Clock, ArrowRight } from '@phosphor-icons/react';
 
 export default function QuizPlay() {
   const { quizId } = useParams();
   const navigate = useNavigate();
+  const { availableQuizzes } = useQuizAvailability();
   
-  const quiz = mockQuizzes.find(q => q.id === quizId);
+  const quiz = availableQuizzes.find(q => q.id === quizId);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -22,8 +23,8 @@ export default function QuizPlay() {
     return null;
   }
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
-  const totalQuestions = mockQuestions.length;
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  const totalQuestions = quiz.questions.length;
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
 
   // Timer effect

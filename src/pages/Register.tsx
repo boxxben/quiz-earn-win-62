@@ -16,7 +16,7 @@ const countries = [
 
 export default function Register() {
   const navigate = useNavigate();
-  const { register, isLoading } = useAuth();
+  const { register, isLoading, user } = useAuth();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -26,6 +26,13 @@ export default function Register() {
     confirmPassword: '',
     country: ''
   });
+
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (user) {
+      navigate(user.isAdmin ? '/admin' : '/home');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,18 +55,18 @@ export default function Register() {
       return;
     }
 
-    try {
-      await register(formData.name, formData.email, formData.password, formData.country);
-      toast({
-        title: 'Welcome to Learn2Earn!',
-        description: 'Your account has been created successfully. You received ₦1,000 welcome bonus!',
-      });
-      navigate('/home');
-    } catch (error) {
+    const { error } = await register(formData.name, formData.email, formData.password, formData.country);
+    
+    if (error) {
       toast({
         title: 'Registration Failed',
-        description: 'Please try again',
+        description: error.message || 'Please try again',
         variant: 'destructive'
+      });
+    } else {
+      toast({
+        title: 'Welcome to Learn2Earn!',
+        description: 'Please check your email to verify your account',
       });
     }
   };

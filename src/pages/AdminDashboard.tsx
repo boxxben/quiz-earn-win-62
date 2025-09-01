@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { mockLeaderboard, mockWithdrawals } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, 
   Brain, 
@@ -19,6 +19,12 @@ import {
 export default function AdminDashboard() {
   const { user, hydrated } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = React.useState({
+    totalUsers: 0,
+    activeQuizzes: 0,
+    pendingWithdrawals: 0,
+    totalEarnings: 0
+  });
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -26,6 +32,25 @@ export default function AdminDashboard() {
       navigate('/home');
     }
   }, [hydrated, user?.isAdmin, navigate]);
+
+  // Fetch dashboard stats
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      const { data: quizzes } = await supabase.from('quizzes').select('*').eq('status', 'active');
+      
+      setStats({
+        totalUsers: profiles?.length || 0,
+        activeQuizzes: quizzes?.length || 0,
+        pendingWithdrawals: 0, // This would come from a withdrawals table
+        totalEarnings: profiles?.reduce((sum, p) => sum + (p.total_earnings || 0), 0) || 0
+      });
+    };
+
+    if (user?.isAdmin) {
+      fetchStats();
+    }
+  }, [user?.isAdmin]);
 
   if (!hydrated) {
     return null;

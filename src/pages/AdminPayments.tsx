@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { mockWithdrawals } from '@/data/mockData';
 import { ArrowLeft, CheckCircle, XCircle, Clock } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,6 +11,7 @@ export default function AdminPayments() {
   const { user, hydrated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -19,6 +19,11 @@ export default function AdminPayments() {
       navigate('/home');
     }
   }, [hydrated, user?.isAdmin, navigate]);
+
+  // Mock withdrawals for now
+  React.useEffect(() => {
+    setWithdrawals([]);
+  }, []);
 
   if (!hydrated) return null;
   if (!user?.isAdmin) return null;

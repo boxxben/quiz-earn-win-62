@@ -10,7 +10,7 @@ import { ArrowLeft, Brain, Eye, EyeSlash } from '@phosphor-icons/react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -19,33 +19,28 @@ export default function Login() {
   });
   const [showPassword, setShowPassword] = useState(false);
 
+  // Redirect if already logged in
+  React.useEffect(() => {
+    if (user) {
+      navigate(user.isAdmin ? '/admin' : '/home');
+    }
+  }, [user, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    try {
-      await login(formData.email, formData.password);
+    const { error } = await login(formData.email, formData.password);
+    
+    if (error) {
+      toast({
+        title: 'Login Failed',
+        description: error.message || 'Invalid email or password',
+        variant: 'destructive'
+      });
+    } else {
       toast({
         title: 'Welcome back!',
         description: 'You have been logged in successfully',
-      });
-      
-      // Check if user is admin and redirect accordingly
-      const savedUser = localStorage.getItem('learn2earn_user');
-      if (savedUser) {
-        const user = JSON.parse(savedUser);
-        if (user.isAdmin) {
-          navigate('/admin');
-        } else {
-          navigate('/home');
-        }
-      } else {
-        navigate('/home');
-      }
-    } catch (error) {
-      toast({
-        title: 'Login Failed',
-        description: 'Invalid email or password',
-        variant: 'destructive'
       });
     }
   };
@@ -54,12 +49,12 @@ export default function Login() {
   const fillDemoCredentials = (isAdmin = false) => {
     if (isAdmin) {
       setFormData({
-        email: 'admin@learn2earn.com',
-        password: 'password123'
+        email: 'games@learn2earn',
+        password: '@2025L&e#Admin'
       });
     } else {
       setFormData({
-        email: 'john@example.com',
+        email: 'user@example.com',
         password: 'password123'
       });
     }

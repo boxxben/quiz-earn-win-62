@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import NotificationModal from '@/components/NotificationModal';
-import { mockQuizzes } from '@/data/mockData';
+import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { formatDiamonds } from '@/lib/currency';
 import { 
   Wallet, 
@@ -22,9 +22,10 @@ import {
 export default function Home() {
   const { user, hydrated } = useAuth();
   const { unreadCount } = useNotifications();
+  const { availableQuizzes } = useQuizAvailability();
 
-  const upcomingQuizzes = mockQuizzes.filter(quiz => quiz.status === 'upcoming').slice(0, 3);
-  const activeQuizzes = mockQuizzes.filter(quiz => quiz.status === 'active').slice(0, 2);
+  const upcomingQuizzes = availableQuizzes.filter(quiz => quiz.status === 'upcoming').slice(0, 3);
+  const activeQuizzes = availableQuizzes.filter(quiz => quiz.status === 'active').slice(0, 2);
 
   
 

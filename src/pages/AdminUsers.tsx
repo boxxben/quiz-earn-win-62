@@ -13,7 +13,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { mockLeaderboard } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, 
   MagnifyingGlass, 
@@ -46,20 +46,39 @@ export default function AdminUsers() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [users, setUsers] = useState<any[]>([]);
 
   const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
 
-  // Mock user data with additional fields
-  const mockUsers = mockLeaderboard.map(user => ({
-    ...user,
-    email: `${user.userName.toLowerCase()}@example.com`,
-    status: Math.random() > 0.1 ? 'Active' : 'Banned',
-    joinDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    lastActive: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-    balance: Math.floor(Math.random() * 50000) + 1000
-  }));
+  // Fetch users from Supabase
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  const filteredUsers = mockUsers.filter(user => {
+      if (data && !error) {
+        const formattedUsers = data.map(user => ({
+          userId: user.user_id,
+          userName: user.name,
+          email: user.email,
+          avatar: user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`,
+          status: 'Active', // You can add a status field to profiles table if needed
+          joinDate: new Date(user.created_at).toLocaleDateString(),
+          lastActive: new Date(user.updated_at).toLocaleDateString(),
+          balance: user.balance,
+          totalEarnings: user.total_earnings,
+          rank: user.rank
+        }));
+        setUsers(formattedUsers);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const filteredUsers = users.filter(user => {
     const matchesSearch = user.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || user.status === statusFilter;
@@ -142,19 +161,19 @@ export default function AdminUsers() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{mockUsers.length}</p>
+              <p className="text-2xl font-bold text-primary">{users.length}</p>
               <p className="text-sm text-muted-foreground">Total Users</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-accent">{mockUsers.filter(u => u.status === 'Active').length}</p>
+              <p className="text-2xl font-bold text-accent">{users.filter(u => u.status === 'Active').length}</p>
               <p className="text-sm text-muted-foreground">Active</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-destructive">{mockUsers.filter(u => u.status === 'Banned').length}</p>
+              <p className="text-2xl font-bold text-destructive">{users.filter(u => u.status === 'Banned').length}</p>
               <p className="text-sm text-muted-foreground">Banned</p>
             </CardContent>
           </Card>

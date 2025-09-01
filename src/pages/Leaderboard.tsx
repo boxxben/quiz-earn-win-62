@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { mockLeaderboard } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import { Trophy, Crown, Medal } from '@phosphor-icons/react';
 
 export default function Leaderboard() {
   const [period, setPeriod] = useState('All Time');
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
   
   const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
 
@@ -16,6 +17,30 @@ export default function Leaderboard() {
     if (rank === 3) return <Medal size={20} className="text-orange-600" />;
     return <span className="font-bold text-muted-foreground">#{rank}</span>;
   };
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('total_earnings', { ascending: false })
+        .limit(10);
+
+      if (data && !error) {
+        const formattedData = data.map((profile, index) => ({
+          rank: index + 1,
+          userId: profile.user_id,
+          userName: profile.name,
+          avatar: profile.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.name}`,
+          points: profile.total_earnings,
+          totalEarnings: profile.total_earnings
+        }));
+        setLeaderboard(formattedData);
+      }
+    };
+
+    fetchLeaderboard();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -33,7 +58,7 @@ export default function Leaderboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockLeaderboard.map(player => (
+            {leaderboard.map(player => (
               <div key={player.userId} className="flex items-center space-x-4 p-3 rounded-lg border">
                 <div className="flex items-center justify-center w-10">
                   {getRankIcon(player.rank)}

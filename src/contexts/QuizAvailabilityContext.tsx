@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { mockQuizzes } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
 import { Quiz } from '@/types';
 
 interface QuizAvailabilityContextType {
@@ -11,22 +11,40 @@ interface QuizAvailabilityContextType {
 const QuizAvailabilityContext = createContext<QuizAvailabilityContextType | undefined>(undefined);
 
 export function QuizAvailabilityProvider({ children }: { children: React.ReactNode }) {
-  const [availableQuizzes, setAvailableQuizzes] = useState<Quiz[]>(mockQuizzes);
+  const [availableQuizzes, setAvailableQuizzes] = useState<Quiz[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Simulate real-time updates (in production, this would connect to WebSocket/SSE)
+  // Fetch quizzes from Supabase
+  const fetchQuizzes = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('quizzes')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (data && !error) {
+      const quizzes = data.map(quiz => ({
+        id: quiz.id,
+        title: quiz.title,
+        description: quiz.description || '',
+        entryFee: quiz.entry_fee,
+        prizePool: quiz.prize_pool,
+        startTime: new Date(quiz.start_time),
+        endTime: new Date(quiz.end_time),
+        duration: quiz.duration,
+        status: quiz.status as 'upcoming' | 'active' | 'completed',
+        isAvailable: quiz.is_available,
+        questions: quiz.questions as any[],
+        rewardProgression: quiz.reward_progression as any[],
+        penaltyAmount: quiz.penalty_amount
+      }));
+      setAvailableQuizzes(quizzes);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate random quiz being taken to show real-time availability
-      setAvailableQuizzes(prev => 
-        prev.map(quiz => ({
-          ...quiz,
-          // Randomly make a quiz unavailable occasionally for demonstration
-          isAvailable: Math.random() > 0.98 ? false : quiz.isAvailable
-        }))
-      );
-    }, 30000); // Check every 30 seconds
-
-    return () => clearInterval(interval);
+    fetchQuizzes();
   }, []);
 
   const startQuiz = async (quizId: string): Promise<boolean> => {
@@ -49,8 +67,7 @@ export function QuizAvailabilityProvider({ children }: { children: React.ReactNo
   };
 
   const refreshQuizzes = () => {
-    // In production, this would fetch from API
-    setAvailableQuizzes([...mockQuizzes]);
+    fetchQuizzes();
   };
 
   return (

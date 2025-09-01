@@ -65,6 +65,60 @@ export type Database = {
         }
         Relationships: []
       }
+      quizzes: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration: number
+          end_time: string
+          entry_fee: number
+          id: string
+          is_available: boolean
+          penalty_amount: number
+          prize_pool: number
+          questions: Json
+          reward_progression: Json
+          start_time: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration?: number
+          end_time: string
+          entry_fee?: number
+          id?: string
+          is_available?: boolean
+          penalty_amount?: number
+          prize_pool?: number
+          questions?: Json
+          reward_progression?: Json
+          start_time: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration?: number
+          end_time?: string
+          entry_fee?: number
+          id?: string
+          is_available?: boolean
+          penalty_amount?: number
+          prize_pool?: number
+          questions?: Json
+          reward_progression?: Json
+          start_time?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number

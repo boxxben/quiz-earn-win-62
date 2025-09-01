@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { mockQuestions } from '@/data/mockData';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { Clock, ArrowRight, TrendUp, Warning } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,13 +70,13 @@ export default function QuizPlayEnhanced() {
   };
   const playQuitSound = () => playSound(196, 0.8, 'sawtooth');
 
-  if (!quiz) {
+  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     navigate('/quizzes');
     return null;
   }
 
-  const currentQuestion = mockQuestions[currentQuestionIndex];
-  const totalQuestions = mockQuestions.length;
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  const totalQuestions = quiz.questions.length;
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
   const midwayPoint = Math.floor(totalQuestions / 2);
   const isAtMidway = currentQuestionIndex === midwayPoint && !hasShownWarning;
@@ -177,10 +176,10 @@ export default function QuizPlayEnhanced() {
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-      // Quiz completed
-      const correctCount = answers.reduce((count, answer, index) => {
-        return count + (answer === mockQuestions[index]?.correctOption ? 1 : 0);
-      }, 0);
+        // Quiz completed, navigate to results
+        const correctCount = answers.reduce((count, answer, index) => {
+          return count + (answer === quiz.questions[index]?.correctOption ? 1 : 0);
+        }, 0);
       
       const finalCorrectCount = selectedAnswer === currentQuestion.correctOption 
         ? correctCount + 1 
@@ -233,7 +232,7 @@ export default function QuizPlayEnhanced() {
     playQuitSound();
 
     const currentCorrect = answers.reduce((count, answer, index) => {
-      return count + (answer === mockQuestions[index]?.correctOption ? 1 : 0);
+      return count + (answer === quiz.questions[index]?.correctOption ? 1 : 0);
     }, 0);
     
     navigate(`/quiz/${quizId}/results`, { 

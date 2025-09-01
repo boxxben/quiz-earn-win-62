@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { mockQuizzes } from '@/data/mockData';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { formatCurrency } from '@/lib/currency';
 import { 
   ArrowLeft, 
@@ -22,6 +23,7 @@ import {
 export default function AdminQuizzes() {
   const { user, hydrated } = useAuth();
   const navigate = useNavigate();
+  const { availableQuizzes, refreshQuizzes } = useQuizAvailability();
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -46,7 +48,7 @@ export default function AdminQuizzes() {
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const filteredQuizzes = mockQuizzes.filter(quiz => 
+  const filteredQuizzes = availableQuizzes.filter(quiz => 
     quiz.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -105,24 +107,24 @@ export default function AdminQuizzes() {
 
         {/* Quiz Stats */}
         <div className="grid grid-cols-3 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-primary">{mockQuizzes.length}</p>
-              <p className="text-sm text-muted-foreground">Total Quizzes</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-accent">{mockQuizzes.filter(q => q.status === 'active').length}</p>
-              <p className="text-sm text-muted-foreground">Active</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-600">{mockQuizzes.filter(q => q.status === 'upcoming').length}</p>
-              <p className="text-sm text-muted-foreground">Upcoming</p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-primary">{availableQuizzes.length}</p>
+                <p className="text-sm text-muted-foreground">Total Quizzes</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-accent">{availableQuizzes.filter(q => q.status === 'active').length}</p>
+                <p className="text-sm text-muted-foreground">Active</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 text-center">
+                <p className="text-2xl font-bold text-blue-600">{availableQuizzes.filter(q => q.status === 'upcoming').length}</p>
+                <p className="text-sm text-muted-foreground">Upcoming</p>
+              </CardContent>
+            </Card>
         </div>
 
         {/* Quizzes List */}

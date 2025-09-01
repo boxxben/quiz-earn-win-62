@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Transaction } from '@/types';
+import { useAuth } from './AuthContext';
 
 interface TransactionContextType {
   transactions: Transaction[];
@@ -11,25 +13,37 @@ const TransactionContext = createContext<TransactionContextType | undefined>(und
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { authUser } = useAuth();
 
-  // Load transactions from localStorage on mount
-  useEffect(() => {
-    const savedTransactions = localStorage.getItem('learn2earn_transactions');
-    if (savedTransactions) {
-      const parsedTransactions = JSON.parse(savedTransactions);
-      // Convert date strings back to Date objects
-      const transactionsWithDates = parsedTransactions.map((t: any) => ({
-        ...t,
-        date: new Date(t.date)
+  // Fetch transactions from Supabase
+  const fetchTransactions = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (data && !error) {
+      const formattedTransactions = data.map(t => ({
+        id: t.id,
+        type: t.type as Transaction['type'],
+        amount: t.amount,
+        status: t.status as Transaction['status'],
+        description: t.description || '',
+        date: new Date(t.created_at)
       }));
-      setTransactions(transactionsWithDates);
+      setTransactions(formattedTransactions);
     }
-  }, []);
+  };
 
-  // Save transactions to localStorage whenever transactions change
+  // Fetch transactions when user changes
   useEffect(() => {
-    localStorage.setItem('learn2earn_transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    if (authUser) {
+      fetchTransactions(authUser.id);
+    } else {
+      setTransactions([]);
+    }
+  }, [authUser]);
 
   const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
     const newTransaction: Transaction = {
@@ -42,8 +56,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   };
 
   const getTransactionsByUserId = (userId: string) => {
-    // For demo purposes, we'll show all transactions since we don't have userId in Transaction model
-    // In a real app, you'd filter by userId
     return transactions.slice(0, 10); // Show last 10 transactions
   };
 
