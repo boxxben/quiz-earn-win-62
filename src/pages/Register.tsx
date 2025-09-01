@@ -55,19 +55,24 @@ export default function Register() {
       return;
     }
 
-    const { error } = await register(formData.name, formData.email, formData.password, formData.country);
+    const result = await register(formData.name, formData.email, formData.password, formData.country);
     
-    if (error) {
+    if (result.error) {
       toast({
         title: 'Registration Failed',
-        description: error.message || 'Please try again',
+        description: result.error.message || 'Please try again',
         variant: 'destructive'
       });
     } else {
       toast({
-        title: 'Welcome to Learn2Earn!',
-        description: 'Please check your email to verify your account',
+        title: 'Account Created Successfully!',
+        description: 'Please check your email and click the verification link to complete your registration.',
+        duration: 10000,
       });
+      // Redirect to login page after showing message
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     }
   };
 

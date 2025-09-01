@@ -80,10 +80,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+    
+    // Check if email is confirmed
+    if (!error && data.user && !data.user.email_confirmed_at) {
+      setIsLoading(false);
+      return { 
+        error: { 
+          message: 'Please check your email and click the verification link before signing in.' 
+        } 
+      };
+    }
     
     setIsLoading(false);
     return { error };
@@ -92,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string, country: string) => {
     setIsLoading(true);
     
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/auth/verify`;
     
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -106,8 +116,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    if (!error && data.user) {
-      // Create profile
+    // Only create profile if signup was successful and user was created
+    if (!error && data.user && !data.session) {
+      // User was created but needs email verification
+      // Profile will be created after email verification via trigger
+      setIsLoading(false);
+      return { error: null, needsVerification: true };
+    }
+
+    if (!error && data.user && data.session) {
+      // User was created and logged in (email confirmation disabled)
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
