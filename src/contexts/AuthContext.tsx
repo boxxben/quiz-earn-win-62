@@ -35,11 +35,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user) {
           // Fetch user profile immediately
           const fetchProfile = async () => {
-            const { data: profile } = await supabase
+            const { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('user_id', session.user.id)
-              .single();
+              .maybeSingle();
 
             if (profile) {
               setUser({
@@ -55,6 +55,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 quizzesWon: profile.quizzes_won,
                 rank: profile.rank
               });
+            } else if (!error || error.code === 'PGRST116') {
+              // Profile doesn't exist, create it from user metadata
+              const userData = session.user.user_metadata;
+              const { error: insertError } = await supabase
+                .from('profiles')
+                .insert({
+                  user_id: session.user.id,
+                  name: userData?.name || 'User',
+                  email: session.user.email || '',
+                  country: userData?.country || '',
+                  balance: 1000,
+                  total_earnings: 0,
+                  quizzes_played: 0,
+                  quizzes_won: 0,
+                  rank: 999
+                });
+              
+              if (!insertError) {
+                setUser({
+                  id: session.user.id,
+                  name: userData?.name || 'User',
+                  email: session.user.email || '',
+                  country: userData?.country || '',
+                  avatar: null,
+                  isAdmin: false,
+                  balance: 1000,
+                  totalEarnings: 0,
+                  quizzesPlayed: 0,
+                  quizzesWon: 0,
+                  rank: 999
+                });
+              }
             }
           };
           fetchProfile();
