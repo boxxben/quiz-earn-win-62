@@ -158,6 +158,7 @@ export default function Deposit() {
         },
       });
 
+      console.log('Paystack setup complete, opening iframe...');
       handler.openIframe();
     } catch (error: any) {
       console.error('Paystack setup error:', error);
@@ -171,6 +172,7 @@ export default function Deposit() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted, calling payWithPaystack...');
     payWithPaystack();
   };
 
