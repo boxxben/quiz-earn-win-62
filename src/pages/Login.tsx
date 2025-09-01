@@ -42,23 +42,10 @@ export default function Login() {
         title: 'Welcome back!',
         description: 'You have been logged in successfully',
       });
+      // The useEffect will handle the redirect when user state updates
     }
   };
 
-  // Demo credentials helper
-  const fillDemoCredentials = (isAdmin = false) => {
-    if (isAdmin) {
-      setFormData({
-        email: 'games@learn2earn',
-        password: '@2025L&e#Admin'
-      });
-    } else {
-      setFormData({
-        email: 'user@example.com',
-        password: 'password123'
-      });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 flex flex-col">
@@ -83,30 +70,6 @@ export default function Login() {
             </p>
           </CardHeader>
           <CardContent>
-            {/* Demo Helper */}
-            <div className="mb-6 space-y-2">
-              <p className="text-xs text-muted-foreground text-center">Demo accounts:</p>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  onClick={() => fillDemoCredentials(false)}
-                >
-                  User Demo
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  onClick={() => fillDemoCredentials(true)}
-                >
-                  Admin Demo
-                </Button>
-              </div>
-            </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>

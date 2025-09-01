@@ -33,8 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile
-          setTimeout(async () => {
+          // Fetch user profile immediately
+          const fetchProfile = async () => {
             const { data: profile } = await supabase
               .from('profiles')
               .select('*')
@@ -56,7 +56,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 rank: profile.rank
               });
             }
-          }, 0);
+          };
+          fetchProfile();
         } else {
           setUser(null);
         }
