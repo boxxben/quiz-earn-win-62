@@ -53,7 +53,7 @@ const App = () => (
                 <Route index element={<Splash />} />
                 <Route path="register" element={<Register />} />
                 <Route path="login" element={<Login />} />
-                <Route path="auth/verify" element={<EmailVerify />} />
+                <Route path="email-verify" element={<EmailVerify />} />
                 <Route path="home" element={<Home />} />
                 <Route path="wallet" element={<Wallet />} />
                 <Route path="wallet/deposit" element={<Deposit />} />
