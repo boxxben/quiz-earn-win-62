@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string, country: string) => {
     setIsLoading(true);
     
-    const redirectUrl = `${window.location.origin}/auth/verify`;
+    const redirectUrl = `${window.location.origin}/email-verify`;
     
     const { data, error } = await supabase.auth.signUp({
       email,
