@@ -172,7 +172,17 @@ export default function Deposit() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted, calling payWithPaystack...');
+    console.log('Form submitted, calling payWithPaystack...', { amount, user });
+    
+    if (!amount || parseInt(amount) < 100) {
+      toast({
+        title: 'Invalid Amount',
+        description: 'Please enter a valid amount (minimum ₦100)',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     payWithPaystack();
   };
 
@@ -285,6 +295,18 @@ export default function Deposit() {
                 type="submit" 
                 className="w-full" 
                 disabled={isLoading || !amount || availableSpace === 0}
+                onClick={(e) => {
+                  console.log('Button clicked!', { amount, isLoading, availableSpace });
+                  if (!amount) {
+                    e.preventDefault();
+                    toast({
+                      title: 'Error',
+                      description: 'Please enter an amount first',
+                      variant: 'destructive'
+                    });
+                    return;
+                  }
+                }}
               >
                 {isLoading ? 'Processing...' : 
                  availableSpace === 0 ? 'Wallet Full - Cannot Deposit' :
