@@ -45,7 +45,7 @@ export default function EmailVerify() {
               name: data.user.user_metadata?.name || '',
               email: data.user.email || '',
               country: data.user.user_metadata?.country || '',
-              balance: 1000,
+              balance: 2,
               total_earnings: 0,
               quizzes_played: 0,
               quizzes_won: 0,

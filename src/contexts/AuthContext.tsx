@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   name: userData?.name || 'User',
                   email: session.user.email || '',
                   country: userData?.country || '',
-                  balance: 1000,
+                  balance: 2,
                   total_earnings: 0,
                   quizzes_played: 0,
                   quizzes_won: 0,
@@ -80,7 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   country: userData?.country || '',
                   avatar: null,
                   isAdmin: false,
-                  balance: 1000,
+                  balance: 2,
                   totalEarnings: 0,
                   quizzesPlayed: 0,
                   quizzesWon: 0,
@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name,
           email,
           country,
-          balance: 1000, // Starting balance
+          balance: 2, // Starting balance
           total_earnings: 0,
           quizzes_played: 0,
           quizzes_won: 0,
