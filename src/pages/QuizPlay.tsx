@@ -82,107 +82,136 @@ export default function QuizPlay() {
     }
   };
 
-  const getOptionStyle = (optionIndex: number) => {
+  const getMillionaireOptionStyle = (optionIndex: number) => {
     if (!isAnswered) {
       return selectedAnswer === optionIndex 
-        ? 'border-primary bg-primary/10 text-primary' 
-        : 'border-border hover:border-primary/50';
+        ? 'border-yellow-400 bg-blue-600/50 shadow-lg shadow-yellow-400/50' 
+        : 'border-blue-400 bg-blue-700/50 hover:border-yellow-400 hover:bg-blue-600/50 hover:shadow-lg hover:shadow-blue-400/30';
     }
     
     // Show correct/incorrect after answering
     if (optionIndex === currentQuestion.correctOption) {
-      return 'border-accent bg-accent text-accent-foreground';
+      return 'border-green-400 bg-green-600/30 shadow-lg shadow-green-400/50';
     }
     
     if (optionIndex === selectedAnswer && selectedAnswer !== currentQuestion.correctOption) {
-      return 'border-destructive bg-destructive text-destructive-foreground';
+      return 'border-red-400 bg-red-600/30 shadow-lg shadow-red-400/50';
     }
     
-    return 'border-border bg-muted text-muted-foreground';
+    return 'border-blue-400 bg-blue-700/30 opacity-60';
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-20 left-20 w-32 h-32 border border-white/20 rounded-full"></div>
+        <div className="absolute top-40 right-32 w-24 h-24 border border-white/20 rounded-full"></div>
+        <div className="absolute bottom-40 left-1/4 w-16 h-16 border border-white/20 rounded-full"></div>
+      </div>
+
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-lg font-bold">{quiz.title}</h1>
-            <p className="text-primary-foreground/80 text-sm">
-              Question {currentQuestionIndex + 1} of {totalQuestions}
-            </p>
+      <div className="relative z-10 text-center py-6">
+        <div className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black mx-auto w-fit px-8 py-3 rounded-full shadow-lg">
+          <h1 className="text-xl font-bold">{quiz.title}</h1>
+        </div>
+        
+        <div className="mt-4 flex justify-center items-center space-x-8">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20">
+            <p className="text-white/80 text-sm">Question {currentQuestionIndex + 1} of {totalQuestions}</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <Clock size={20} />
-            <span className={`font-bold ${timeLeft <= 10 ? 'text-red-200' : ''}`}>
+          
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg px-4 py-2 border border-white/20 flex items-center space-x-2">
+            <Clock size={20} className="text-white" />
+            <span className={`font-bold text-white ${timeLeft <= 10 ? 'text-red-300' : 'text-white'}`}>
               {timeLeft}s
             </span>
           </div>
         </div>
         
-        <Progress value={progress} className="h-2 bg-primary-foreground/20" />
+        <div className="mt-4 mx-8">
+          <Progress value={progress} className="h-3 bg-white/20" />
+        </div>
       </div>
 
-      <div className="px-6 py-6">
-        {/* Question */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <h2 className="text-xl font-semibold mb-6 leading-relaxed">
+      {/* Main Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-[60vh] px-6">
+        
+        {/* Question Display */}
+        <div className="w-full max-w-4xl mb-12">
+          <div className="bg-gradient-to-r from-blue-800 to-blue-700 rounded-lg p-8 border-4 border-yellow-400 shadow-2xl">
+            <h2 className="text-white text-2xl md:text-3xl font-bold text-center leading-relaxed">
               {currentQuestion.text}
             </h2>
-            
-            {/* Options */}
-            <div className="space-y-3">
-              {currentQuestion.options.map((option, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleAnswerSelect(index)}
-                  disabled={isAnswered}
-                  className={`w-full p-4 text-left rounded-lg border-2 transition-all ${getOptionStyle(index)}`}
-                >
-                  <div className="flex items-center">
-                    <div className="w-6 h-6 rounded-full border-2 border-current flex items-center justify-center mr-3 text-sm font-bold">
-                      {String.fromCharCode(65 + index)}
-                    </div>
-                    <span className="font-medium">{option}</span>
+          </div>
+        </div>
+
+        {/* Answer Options - 2x2 Grid */}
+        <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-6">
+          {currentQuestion.options.map((option, index) => {
+            const letters = ['A', 'B', 'C', 'D'];
+            return (
+              <button
+                key={index}
+                onClick={() => handleAnswerSelect(index)}
+                disabled={isAnswered}
+                className={`group relative p-6 rounded-lg border-4 transition-all duration-300 transform hover:scale-105 ${getMillionaireOptionStyle(index)}`}
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center border-2 border-yellow-300 shadow-lg">
+                    <span className="text-black text-xl font-bold">{letters[index]}:</span>
                   </div>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  <span className="text-white text-lg md:text-xl font-semibold flex-1 text-left">
+                    {option}
+                  </span>
+                </div>
+                
+                {/* Glow effect for selected/correct answers */}
+                {isAnswered && index === currentQuestion.correctOption && (
+                  <div className="absolute inset-0 rounded-lg bg-green-400/20 border-4 border-green-400 animate-pulse"></div>
+                )}
+                {isAnswered && index === selectedAnswer && selectedAnswer !== currentQuestion.correctOption && (
+                  <div className="absolute inset-0 rounded-lg bg-red-400/20 border-4 border-red-400"></div>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Next Button */}
-        <Button
-          onClick={handleNext}
-          disabled={!isAnswered && timeLeft > 0}
-          size="lg"
-          className="w-full"
-        >
-          {currentQuestionIndex < totalQuestions - 1 ? (
-            <>
-              Next Question
-              <ArrowRight size={20} className="ml-2" />
-            </>
-          ) : (
-            'Finish Quiz'
-          )}
-        </Button>
+        {isAnswered && (
+          <div className="mt-12">
+            <Button
+              onClick={handleNext}
+              size="lg"
+              className="bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-300 hover:to-yellow-500 text-black font-bold px-12 py-4 text-xl rounded-full border-4 border-yellow-300 shadow-2xl transform hover:scale-105 transition-all duration-300"
+            >
+              {currentQuestionIndex < totalQuestions - 1 ? (
+                <>
+                  Next Question
+                  <ArrowRight size={24} className="ml-2" />
+                </>
+              ) : (
+                'Finish Quiz'
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Answer feedback */}
         {isAnswered && (
-          <Card className="mt-4 border-accent/30 bg-accent/5">
-            <CardContent className="p-4">
-              <p className="text-sm font-medium text-accent mb-1">
+          <div className="mt-8 text-center">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg px-6 py-4 border border-white/20">
+              <p className="text-white text-xl font-bold mb-2">
                 {selectedAnswer === currentQuestion.correctOption ? '✅ Correct!' : '❌ Incorrect'}
               </p>
               {selectedAnswer !== currentQuestion.correctOption && (
-                <p className="text-sm text-muted-foreground">
-                  The correct answer was: {currentQuestion.options[currentQuestion.correctOption]}
+                <p className="text-white/80">
+                  The correct answer was: <span className="font-semibold text-yellow-300">{currentQuestion.options[currentQuestion.correctOption]}</span>
                 </p>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
     </div>
