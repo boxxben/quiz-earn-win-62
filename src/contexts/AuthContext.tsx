@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } else if (!error || error.code === 'PGRST116') {
               // Profile doesn't exist, create it from user metadata
               const userData = session.user.user_metadata;
+              const isAdmin = session.user.email === 'games@learn2earn';
               const { error: insertError } = await supabase
                 .from('profiles')
                 .insert({
@@ -65,11 +66,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   name: userData?.name || 'User',
                   email: session.user.email || '',
                   country: userData?.country || '',
-                  balance: 2,
+                  balance: isAdmin ? 1000 : 2,
                   total_earnings: 0,
                   quizzes_played: 0,
                   quizzes_won: 0,
-                  rank: 999
+                  rank: isAdmin ? 1 : 999,
+                  is_admin: isAdmin
                 });
               
               if (!insertError) {
@@ -79,12 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   email: session.user.email || '',
                   country: userData?.country || '',
                   avatar: null,
-                  isAdmin: false,
-                  balance: 2,
+                  isAdmin: isAdmin,
+                  balance: isAdmin ? 1000 : 2,
                   totalEarnings: 0,
                   quizzesPlayed: 0,
                   quizzesWon: 0,
-                  rank: 999
+                  rank: isAdmin ? 1 : 999
                 });
               }
             }
@@ -159,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!error && data.user && data.session) {
       // User was created and logged in (email confirmation disabled)
+      const isAdmin = email === 'games@learn2earn';
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -166,11 +169,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           name,
           email,
           country,
-          balance: 2, // Starting balance
+          balance: isAdmin ? 1000 : 2, // Higher balance for admin
           total_earnings: 0,
           quizzes_played: 0,
           quizzes_won: 0,
-          rank: 999
+          rank: isAdmin ? 1 : 999,
+          is_admin: isAdmin
         });
 
       if (profileError) {
