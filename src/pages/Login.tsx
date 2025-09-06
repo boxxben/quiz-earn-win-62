@@ -42,8 +42,7 @@ export default function Login() {
         title: 'Welcome back!',
         description: 'You have been logged in successfully',
       });
-      // Redirect to home after successful login
-      navigate('/home');
+      // The useEffect will handle the redirect based on user role
     }
   };
 
