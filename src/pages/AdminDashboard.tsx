@@ -17,7 +17,7 @@ import {
 } from '@phosphor-icons/react';
 
 export default function AdminDashboard() {
-  const { user, hydrated } = useAuth();
+  const { user, hydrated, logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = React.useState({
     totalUsers: 0,
@@ -76,11 +76,16 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6">
-        <div className="flex items-center mb-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/profile')} className="text-primary-foreground hover:bg-white/20">
-            <ArrowLeft size={20} />
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/profile')} className="text-primary-foreground hover:bg-white/20">
+              <ArrowLeft size={20} />
+            </Button>
+            <h1 className="text-xl font-bold ml-4">Admin Dashboard</h1>
+          </div>
+          <Button variant="ghost" size="sm" onClick={logout} className="text-primary-foreground hover:bg-white/20">
+            Logout
           </Button>
-          <h1 className="text-xl font-bold ml-4">Admin Dashboard</h1>
         </div>
         <p className="text-primary-foreground/80">Manage your Learn2Earn platform</p>
       </div>
