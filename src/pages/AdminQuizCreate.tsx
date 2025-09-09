@@ -101,10 +101,10 @@ export default function AdminQuizCreate() {
   };
 
   const generateQuestionsWithAI = async () => {
-    if (!formData.title || !formData.category) {
+    if (!formData.category) {
       toast({
         title: "Missing Information",
-        description: "Please fill in quiz title and category first",
+        description: "Please select a category first",
         variant: "destructive"
       });
       return;
@@ -114,10 +114,8 @@ export default function AdminQuizCreate() {
     try {
       const { data, error } = await supabase.functions.invoke('generate-questions', {
         body: {
-          topic: formData.title,
           category: formData.category,
-          numberOfQuestions: formData.numberOfQuestions,
-          difficulty: "medium"
+          numberOfQuestions: formData.numberOfQuestions
         }
       });
 
@@ -126,8 +124,8 @@ export default function AdminQuizCreate() {
       if (data?.questions) {
         setQuestions(data.questions);
         toast({
-          title: "Questions Generated",
-          description: `Successfully generated ${data.questions.length} questions using AI`,
+          title: "Hard Questions Generated",
+          description: `Successfully generated ${data.questions.length} challenging questions using AI`,
         });
       }
     } catch (error) {
@@ -331,13 +329,13 @@ export default function AdminQuizCreate() {
               <CardTitle>Questions ({questions.length})</CardTitle>
               <Button 
                 onClick={generateQuestionsWithAI}
-                disabled={isGenerating || !formData.title || !formData.category}
+                disabled={isGenerating || !formData.category}
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-2"
               >
                 <MagicWand size={16} />
-                {isGenerating ? 'Generating...' : 'Generate with AI'}
+                {isGenerating ? 'Generating...' : 'Generate Hard Questions'}
               </Button>
             </div>
           </CardHeader>

@@ -13,11 +13,11 @@ serve(async (req) => {
   }
 
   try {
-    const { topic, category, numberOfQuestions, difficulty = "medium" } = await req.json();
+    const { category, numberOfQuestions } = await req.json();
 
-    if (!topic || !category || !numberOfQuestions) {
+    if (!category || !numberOfQuestions) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: topic, category, numberOfQuestions' }),
+        JSON.stringify({ error: 'Missing required fields: category, numberOfQuestions' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -27,25 +27,33 @@ serve(async (req) => {
       throw new Error('OPENAI_API_KEY is not set');
     }
 
-    const prompt = `Generate ${numberOfQuestions} multiple choice quiz questions about "${topic}" in the ${category} category with ${difficulty} difficulty level.
+    const prompt = `Generate ${numberOfQuestions} HARD difficulty multiple choice quiz questions in the ${category} category.
+
+Requirements:
+1. Questions should be CHALLENGING and require deep knowledge
+2. Mix different subtopics within the ${category} category
+3. Questions should be at university/expert level difficulty
+4. Each question must have exactly 4 answer options
+5. Include tricky but fair questions that test real knowledge
+6. Avoid overly obscure trivia - focus on important but challenging concepts
 
 For each question, provide:
-1. A clear, concise question text
-2. Exactly 4 answer options labeled A, B, C, D
-3. The correct answer (specify which option A, B, C, or D)
-4. Make questions challenging but fair
+- A clear, challenging question text
+- Exactly 4 plausible answer options
+- The correct answer (specify index 0-3)
+- 30-45 second time limit for hard questions
 
 Format your response as a JSON array where each question has this structure:
 {
   "text": "Question text here",
   "options": ["Option A", "Option B", "Option C", "Option D"],
   "correctOption": 0 (0 for A, 1 for B, 2 for C, 3 for D),
-  "timeLimit": 30
+  "timeLimit": 35
 }
 
-Make sure the questions are varied, educational, and appropriate for a quiz game. Return only the JSON array, no additional text.`;
+Generate challenging questions that separate casual players from knowledgeable ones. Return only the JSON array, no additional text.`;
 
-    console.log('Generating questions for:', { topic, category, numberOfQuestions, difficulty });
+    console.log('Generating hard questions for category:', { category, numberOfQuestions });
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
