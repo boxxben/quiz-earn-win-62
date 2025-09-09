@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { formatCurrency } from '@/lib/currency';
+import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
   MagnifyingGlass, 
@@ -17,13 +18,15 @@ import {
   Trash,
   Users,
   Clock,
-  Coins
+  Coins,
+  MagicWand
 } from '@phosphor-icons/react';
 
 export default function AdminQuizzes() {
   const { user, hydrated } = useAuth();
   const navigate = useNavigate();
   const { availableQuizzes, refreshQuizzes } = useQuizAvailability();
+  const { toast } = useToast();
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -41,6 +44,7 @@ export default function AdminQuizzes() {
   }
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [isBulkGenerating, setIsBulkGenerating] = useState(false);
 
   
   
@@ -68,6 +72,36 @@ export default function AdminQuizzes() {
   const handleQuizAction = (quizId: string, action: string) => {
     console.log(`${action} quiz ${quizId}`);
     // Here you would implement the actual quiz management logic
+  };
+
+  const handleBulkGenerate = async () => {
+    setIsBulkGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-generate-quizzes', {
+        body: {
+          numberOfQuizzes: 50,
+          questionsPerQuiz: Math.floor(Math.random() * 6) + 10 // 10-15 questions
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Bulk Generation Complete",
+        description: `Successfully generated ${data.created} out of ${data.total} quizzes with AI`,
+      });
+
+      refreshQuizzes(); // Refresh the quiz list
+    } catch (error) {
+      console.error('Error bulk generating quizzes:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate quizzes. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsBulkGenerating(false);
+    }
   };
 
   return (
@@ -238,10 +272,19 @@ export default function AdminQuizzes() {
             <Button 
               variant="outline" 
               className="w-full justify-start"
-              onClick={() => handleQuizAction('', 'bulk-import')}
+              onClick={handleBulkGenerate}
+              disabled={isBulkGenerating}
+            >
+              <MagicWand size={16} className="mr-2" />
+              {isBulkGenerating ? 'Generating 50 Quizzes...' : 'Generate 50 AI Quizzes'}
+            </Button>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={() => navigate('/admin/quiz/create')}
             >
               <Plus size={16} className="mr-2" />
-              Bulk Import Questions
+              Create Single Quiz
             </Button>
             <Button 
               variant="outline" 
