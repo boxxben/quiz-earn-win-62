@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Trash } from '@phosphor-icons/react';
+import { ArrowLeft, Plus, Trash, MagicWand } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
 import { Question, QuizReward } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AdminQuizCreate() {
   const { user, hydrated } = useAuth();
@@ -43,6 +44,8 @@ export default function AdminQuizCreate() {
   const [rewards, setRewards] = useState<QuizReward[]>([
     { questionNumber: 1, correctReward: 50 }
   ]);
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Generate progressive rewards automatically
   React.useEffect(() => {
@@ -95,6 +98,48 @@ export default function AdminQuizCreate() {
     options[optionIndex] = value;
     newQuestions[questionIndex] = { ...newQuestions[questionIndex], options };
     setQuestions(newQuestions);
+  };
+
+  const generateQuestionsWithAI = async () => {
+    if (!formData.title || !formData.category) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in quiz title and category first",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-questions', {
+        body: {
+          topic: formData.title,
+          category: formData.category,
+          numberOfQuestions: formData.numberOfQuestions,
+          difficulty: "medium"
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.questions) {
+        setQuestions(data.questions);
+        toast({
+          title: "Questions Generated",
+          description: `Successfully generated ${data.questions.length} questions using AI`,
+        });
+      }
+    } catch (error) {
+      console.error('Error generating questions:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate questions. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -282,7 +327,19 @@ export default function AdminQuizCreate() {
         {/* Questions */}
         <Card>
           <CardHeader>
-            <CardTitle>Questions ({questions.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Questions ({questions.length})</CardTitle>
+              <Button 
+                onClick={generateQuestionsWithAI}
+                disabled={isGenerating || !formData.title || !formData.category}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <MagicWand size={16} />
+                {isGenerating ? 'Generating...' : 'Generate with AI'}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {questions.map((question, qIndex) => (
