@@ -23,7 +23,11 @@ export default function AdminPayments() {
 
   React.useEffect(() => {
     const fetchWithdrawals = async () => {
-      const { data } = await supabase.from('transactions').select('*').eq('type', 'withdrawal');
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .in('type', ['withdrawal', 'deposit'])
+        .order('created_at', { ascending: false });
       setWithdrawals(data || []);
     };
     
@@ -42,20 +46,40 @@ export default function AdminPayments() {
     return d.toLocaleDateString() + ' at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleApproval = async (withdrawalId: string, action: 'approve' | 'reject') => {
+  const handleApproval = async (transactionId: string, action: 'approve' | 'reject', transaction: any) => {
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+    
+    // If approving a deposit, credit user wallet
+    if (action === 'approve' && transaction.type === 'deposit') {
+      // Get user profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('balance')
+        .eq('user_id', transaction.user_id)
+        .single();
+
+      if (profile) {
+        // Update user balance
+        await supabase
+          .from('profiles')
+          .update({ balance: profile.balance + transaction.amount })
+          .eq('user_id', transaction.user_id);
+      }
+    }
+
     const { error } = await supabase
       .from('transactions')
-      .update({ status: action === 'approve' ? 'approved' : 'rejected' })
-      .eq('id', withdrawalId);
+      .update({ status: newStatus })
+      .eq('id', transactionId);
       
     if (!error) {
       setWithdrawals(prev => prev.map(w => 
-        w.id === withdrawalId ? { ...w, status: action === 'approve' ? 'approved' : 'rejected' } : w
+        w.id === transactionId ? { ...w, status: newStatus } : w
       ));
       
       toast({
         title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `Withdrawal request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+        description: `${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
         variant: action === 'approve' ? 'default' : 'destructive'
       });
     }
@@ -64,6 +88,7 @@ export default function AdminPayments() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
+      case 'pending_approval':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock size={12} className="mr-1" />Pending</Badge>;
       case 'approved':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle size={12} className="mr-1" />Approved</Badge>;
@@ -92,7 +117,7 @@ export default function AdminPayments() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending' || w.status === 'pending_approval').length}</p>
               <p className="text-sm text-muted-foreground">Pending</p>
             </CardContent>
           </Card>
@@ -110,10 +135,10 @@ export default function AdminPayments() {
           </Card>
         </div>
 
-        {/* Withdrawal Requests */}
+        {/* Payment Requests */}
         <Card>
           <CardHeader>
-            <CardTitle>Withdrawal Requests ({withdrawals.length})</CardTitle>
+            <CardTitle>Payment Requests ({withdrawals.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -122,6 +147,9 @@ export default function AdminPayments() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-2">
+                        <Badge variant={withdrawal.type === 'deposit' ? 'default' : 'secondary'} className="mr-2">
+                          {withdrawal.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
+                        </Badge>
                         <h3 className="font-semibold text-lg">{formatCurrency(withdrawal.amount)}</h3>
                         {getStatusBadge(withdrawal.status)}
                       </div>
@@ -135,6 +163,12 @@ export default function AdminPayments() {
                           <p className="text-muted-foreground">Request Date</p>
                           <p className="font-medium">{formatDate(withdrawal.created_at)}</p>
                         </div>
+                        {withdrawal.paystack_reference && (
+                          <div className="col-span-2">
+                            <p className="text-muted-foreground">Deposit ID</p>
+                            <p className="font-medium font-mono text-primary">{withdrawal.paystack_reference}</p>
+                          </div>
+                        )}
                       </div>
                       
                       {withdrawal.description && (
@@ -145,11 +179,11 @@ export default function AdminPayments() {
                       )}
                     </div>
                     
-                    {withdrawal.status === 'pending' && (
+                    {(withdrawal.status === 'pending' || withdrawal.status === 'pending_approval') && (
                       <div className="flex space-x-2 ml-4">
                         <Button
                           size="sm"
-                          onClick={() => handleApproval(withdrawal.id, 'approve')}
+                          onClick={() => handleApproval(withdrawal.id, 'approve', withdrawal)}
                           className="bg-green-600 hover:bg-green-700"
                         >
                           <CheckCircle size={14} className="mr-1" />
@@ -158,7 +192,7 @@ export default function AdminPayments() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          onClick={() => handleApproval(withdrawal.id, 'reject')}
+                          onClick={() => handleApproval(withdrawal.id, 'reject', withdrawal)}
                         >
                           <XCircle size={14} className="mr-1" />
                           Reject
@@ -172,7 +206,7 @@ export default function AdminPayments() {
             
             {withdrawals.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">No withdrawal requests found</p>
+                <p className="text-muted-foreground">No payment requests found</p>
               </div>
             )}
           </CardContent>

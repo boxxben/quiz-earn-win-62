@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/contexts/TransactionContext';
@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds, nairaTodiamonds, diamondsToNaira } from '@/lib/currency';
 import { MAX_WALLET_BALANCE } from '@/lib/constants';
 import { ArrowLeft, CreditCard, Bank, Phone, Clock } from '@phosphor-icons/react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { supabase } from '@/integrations/supabase/client';
 
 const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
@@ -21,6 +23,10 @@ export default function Deposit() {
   
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [depositId, setDepositId] = useState('');
+  const [pendingDeposit, setPendingDeposit] = useState<any>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
   
   const currentBalance = user?.balance || 0;
   const maxBalance = MAX_WALLET_BALANCE;
@@ -34,11 +40,52 @@ export default function Deposit() {
     setAmount(value.toString());
   };
 
-  const payWithPaystack = () => {
+  // Check for pending deposit on mount
+  useEffect(() => {
+    const checkPendingDeposit = async () => {
+      if (user?.id) {
+        const { data } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('type', 'deposit')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (data && data.length > 0) {
+          setPendingDeposit(data[0]);
+          const createdAt = new Date(data[0].created_at).getTime();
+          const expiresAt = createdAt + (30 * 60 * 1000); // 30 minutes
+          const remaining = Math.floor((expiresAt - Date.now()) / 1000);
+          if (remaining > 0) {
+            setCountdown(remaining);
+          }
+        }
+      }
+    };
+    checkPendingDeposit();
+  }, [user?.id]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (countdown !== null && countdown > 0) {
+      const timer = setInterval(() => {
+        setCountdown(prev => prev !== null && prev > 0 ? prev - 1 : null);
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [countdown]);
+
+  const generateDepositId = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+    return `DEP-${timestamp}-${random}`;
+  };
+
+  const initiateDeposit = async () => {
     const depositAmount = parseInt(amount);
     const diamondsToAdd = nairaTodiamonds(depositAmount);
-
-    console.log('Initiating payment...', { user, depositAmount, amount });
 
     if (!amount || depositAmount < 100) {
       toast({
@@ -67,11 +114,10 @@ export default function Deposit() {
       return;
     }
 
-    // Use user email or fallback to session email
-    const userEmail = user?.email || (window as any).supabaseSession?.user?.email;
-    const userId = user?.id || (window as any).supabaseSession?.user?.id;
+    const userEmail = user?.email;
+    const userId = user?.id;
     
-    if (!userEmail) {
+    if (!userEmail || !userId) {
       toast({
         title: 'Authentication Error',
         description: 'User email not found. Please log in again.',
@@ -80,99 +126,100 @@ export default function Deposit() {
       return;
     }
 
-    // Check if Paystack is loaded
-    if (!(window as any).PaystackPop) {
+    // Generate deposit ID and show confirmation dialog
+    const newDepositId = generateDepositId();
+    setDepositId(newDepositId);
+    setShowConfirmDialog(true);
+  };
+
+  const confirmAndRedirect = async () => {
+    const depositAmount = parseInt(amount);
+    const userId = user?.id;
+    const userEmail = user?.email;
+
+    if (!userId || !userEmail) return;
+
+    setIsLoading(true);
+    
+    // Create pending transaction in database
+    const { error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        type: 'deposit',
+        amount: depositAmount,
+        status: 'pending',
+        description: `Deposit ID: ${depositId} - Awaiting confirmation`,
+        paystack_reference: depositId
+      });
+
+    if (error) {
       toast({
-        title: 'Payment Error',
-        description: 'Paystack payment system is not loaded. Please refresh the page and try again.',
+        title: 'Error',
+        description: 'Failed to create deposit request. Please try again.',
+        variant: 'destructive'
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    // Fetch the created transaction
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('paystack_reference', depositId)
+      .single();
+
+    setPendingDeposit(transactions);
+    setCountdown(30 * 60); // 30 minutes in seconds
+
+    setShowConfirmDialog(false);
+    setIsLoading(false);
+
+    // Open Paystack link in new tab
+    window.open('https://paystack.shop/pay/learn2earn01', '_blank');
+
+    toast({
+      title: 'Payment Link Opened',
+      description: `Use Deposit ID: ${depositId} and pay exactly ₦${depositAmount.toLocaleString()}`,
+    });
+  };
+
+  const handleHavePaid = async () => {
+    if (!pendingDeposit) return;
+
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'pending_approval' })
+      .eq('id', pendingDeposit.id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update status. Please try again.',
         variant: 'destructive'
       });
       return;
     }
 
-    console.log('Setting up Paystack payment...', { userEmail, userId, depositAmount });
+    toast({
+      title: 'Submitted for Approval',
+      description: 'Your payment is being reviewed by admin.',
+    });
 
-    try {
-      const handler = (window as any).PaystackPop.setup({
-        key: "pk_test_4d4685ec21ebcb1943cfa732676dd48feb2db4f7",
-        email: userEmail,
-        amount: depositAmount * 100, // Convert to kobo
-        currency: "NGN",
-        callback: async function (response: any) {
-          console.log('Payment callback received:', response);
-          setIsLoading(true);
-          try {
-            // Import supabase client
-            const { supabase } = await import('@/integrations/supabase/client');
-            
-            const { data, error } = await supabase.functions.invoke('verify-payment', {
-              body: {
-                reference: response.reference,
-                userId: userId,
-                amount: depositAmount,
-              },
-            });
+    setPendingDeposit(null);
+    setCountdown(null);
+    setAmount('');
+  };
 
-            if (error) throw error;
-
-            if (data.status === "success") {
-              // Update local user balance
-              updateUser({ 
-                balance: data.newBalance
-              });
-              
-              // Record transaction locally
-              addTransaction({
-                type: 'deposit',
-                amount: data.diamondsAdded,
-                status: 'completed',
-                description: `Wallet deposit via Paystack - ₦${depositAmount.toLocaleString()}`
-              });
-
-              toast({
-                title: '✅ Deposit Successful!',
-                description: `₦${depositAmount.toLocaleString()} (${formatDiamonds(data.diamondsAdded)}) added to wallet`,
-              });
-              
-              navigate('/wallet');
-            } else {
-              throw new Error(data.message || "Payment verification failed");
-            }
-          } catch (error: any) {
-            console.error('Payment verification error:', error);
-            toast({
-              title: '❌ Payment Verification Failed',
-              description: error.message || 'Please contact support if money was deducted.',
-              variant: 'destructive'
-            });
-          } finally {
-            setIsLoading(false);
-          }
-        },
-        onClose: function () {
-          toast({
-            title: 'Transaction Cancelled',
-            description: 'Payment was cancelled by user',
-            variant: 'destructive'
-          });
-        },
-      });
-
-      console.log('Paystack setup complete, opening iframe...');
-      handler.openIframe();
-    } catch (error: any) {
-      console.error('Paystack setup error:', error);
-      toast({
-        title: 'Payment Setup Error',
-        description: 'Failed to initialize payment. Please try again.',
-        variant: 'destructive'
-      });
-    }
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted, calling payWithPaystack...', { amount, user });
     
     if (!amount || parseInt(amount) < 100) {
       toast({
@@ -183,7 +230,7 @@ export default function Deposit() {
       return;
     }
     
-    payWithPaystack();
+    initiateDeposit();
   };
 
   return (
@@ -200,6 +247,33 @@ export default function Deposit() {
       </div>
 
       <div className="px-6 py-6 space-y-6">
+        {/* Pending Deposit Status */}
+        {pendingDeposit && countdown !== null && countdown > 0 && (
+          <Card className="border-blue-500 bg-blue-50">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-blue-800">Pending Payment</p>
+                    <p className="text-sm text-blue-600">Deposit ID: {pendingDeposit.paystack_reference}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-blue-800">{formatNaira(pendingDeposit.amount)}</p>
+                    <p className="text-sm text-blue-600">{formatCountdown(countdown)}</p>
+                  </div>
+                </div>
+                <Button 
+                  onClick={handleHavePaid}
+                  className="w-full"
+                  variant="default"
+                >
+                  I Have Paid
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Wallet Limit Warning */}
         {availableSpace <= 200 && (
           <Card className="border-orange-500 bg-orange-50">
@@ -294,21 +368,10 @@ export default function Deposit() {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isLoading || !amount || availableSpace === 0}
-                onClick={(e) => {
-                  console.log('Button clicked!', { amount, isLoading, availableSpace });
-                  if (!amount) {
-                    e.preventDefault();
-                    toast({
-                      title: 'Error',
-                      description: 'Please enter an amount first',
-                      variant: 'destructive'
-                    });
-                    return;
-                  }
-                }}
+                disabled={isLoading || !amount || availableSpace === 0 || (pendingDeposit !== null)}
               >
                 {isLoading ? 'Processing...' : 
+                 pendingDeposit ? 'Complete Pending Payment First' :
                  availableSpace === 0 ? 'Wallet Full - Cannot Deposit' :
                  amount ? `Proceed to Payment - ${formatNaira(parseInt(amount))} (${formatDiamonds(nairaTodiamonds(parseInt(amount)))})` : 
                  'Enter amount to proceed'}
@@ -359,6 +422,39 @@ export default function Deposit() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Payment Details</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p className="text-base font-semibold text-foreground">
+                Please use the following details when making payment:
+              </p>
+              <div className="bg-muted p-3 rounded-lg space-y-2">
+                <div>
+                  <p className="text-sm text-muted-foreground">Deposit ID:</p>
+                  <p className="font-mono font-bold text-primary">{depositId}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Amount:</p>
+                  <p className="font-bold text-lg">{formatNaira(parseInt(amount || '0'))}</p>
+                </div>
+              </div>
+              <p className="text-sm text-orange-600 font-medium">
+                ⚠️ Use the exact amount and deposit ID during payment
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmAndRedirect}>
+              OK, Proceed to Payment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
