@@ -42,7 +42,10 @@ export default function Login() {
         title: 'Welcome back!',
         description: 'You have been logged in successfully',
       });
-      // The useEffect will handle the redirect based on user role
+      
+      // Check if admin email and redirect accordingly
+      const isAdmin = formData.email === 'games@learn2earn.com';
+      navigate(isAdmin ? '/admin' : '/home');
     }
   };
 
