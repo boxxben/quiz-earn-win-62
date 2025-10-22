@@ -19,12 +19,14 @@ export default function Login() {
   });
   const [showPassword, setShowPassword] = useState(false);
 
-  // Redirect if already logged in
+  const [loginSuccess, setLoginSuccess] = useState(false);
+
+  // Redirect after login when user data is loaded
   React.useEffect(() => {
-    if (user) {
+    if (user && loginSuccess) {
       navigate(user.isAdmin ? '/admin' : '/home');
     }
-  }, [user, navigate]);
+  }, [user, loginSuccess, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,14 +40,11 @@ export default function Login() {
         variant: 'destructive'
       });
     } else {
+      setLoginSuccess(true);
       toast({
         title: 'Welcome back!',
         description: 'You have been logged in successfully',
       });
-      
-      // Check if admin email and redirect accordingly
-      const isAdmin = formData.email === 'games@learn2earn.com';
-      navigate(isAdmin ? '/admin' : '/home');
     }
   };
 
