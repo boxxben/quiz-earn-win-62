@@ -28,70 +28,72 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setAuthUser(session?.user ?? null);
         
         if (session?.user) {
-          // Fetch user profile immediately
-          const fetchProfile = async () => {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .maybeSingle();
-
-            if (profile) {
-              setUser({
-                id: profile.user_id,
-                name: profile.name,
-                email: profile.email,
-                country: profile.country,
-                avatar: profile.avatar,
-                isAdmin: profile.is_admin,
-                balance: profile.balance,
-                totalEarnings: profile.total_earnings,
-                quizzesPlayed: profile.quizzes_played,
-                quizzesWon: profile.quizzes_won,
-                rank: profile.rank
-              });
-            } else if (!error || error.code === 'PGRST116') {
-              // Profile doesn't exist, create it from user metadata
-              const userData = session.user.user_metadata;
-              const isAdmin = session.user.email === 'games@learn2earn';
-              const { error: insertError } = await supabase
+          // Defer profile fetching to avoid deadlock
+          setTimeout(() => {
+            const fetchProfile = async () => {
+              const { data: profile, error } = await supabase
                 .from('profiles')
-                .insert({
-                  user_id: session.user.id,
-                  name: userData?.name || 'User',
-                  email: session.user.email || '',
-                  country: userData?.country || '',
-                  balance: isAdmin ? 1000 : 2,
-                  total_earnings: 0,
-                  quizzes_played: 0,
-                  quizzes_won: 0,
-                  rank: isAdmin ? 1 : 999,
-                  is_admin: isAdmin
-                });
-              
-              if (!insertError) {
+                .select('*')
+                .eq('user_id', session.user.id)
+                .maybeSingle();
+
+              if (profile) {
                 setUser({
-                  id: session.user.id,
-                  name: userData?.name || 'User',
-                  email: session.user.email || '',
-                  country: userData?.country || '',
-                  avatar: null,
-                  isAdmin: isAdmin,
-                  balance: isAdmin ? 1000 : 2,
-                  totalEarnings: 0,
-                  quizzesPlayed: 0,
-                  quizzesWon: 0,
-                  rank: isAdmin ? 1 : 999
+                  id: profile.user_id,
+                  name: profile.name,
+                  email: profile.email,
+                  country: profile.country,
+                  avatar: profile.avatar,
+                  isAdmin: profile.is_admin,
+                  balance: profile.balance,
+                  totalEarnings: profile.total_earnings,
+                  quizzesPlayed: profile.quizzes_played,
+                  quizzesWon: profile.quizzes_won,
+                  rank: profile.rank
                 });
+              } else if (!error || error.code === 'PGRST116') {
+                // Profile doesn't exist, create it from user metadata
+                const userData = session.user.user_metadata;
+                const isAdmin = session.user.email === 'games@learn2earn.com';
+                const { error: insertError } = await supabase
+                  .from('profiles')
+                  .insert({
+                    user_id: session.user.id,
+                    name: userData?.name || 'User',
+                    email: session.user.email || '',
+                    country: userData?.country || '',
+                    balance: isAdmin ? 1000 : 2,
+                    total_earnings: 0,
+                    quizzes_played: 0,
+                    quizzes_won: 0,
+                    rank: isAdmin ? 1 : 999,
+                    is_admin: isAdmin
+                  });
+                
+                if (!insertError) {
+                  setUser({
+                    id: session.user.id,
+                    name: userData?.name || 'User',
+                    email: session.user.email || '',
+                    country: userData?.country || '',
+                    avatar: null,
+                    isAdmin: isAdmin,
+                    balance: isAdmin ? 1000 : 2,
+                    totalEarnings: 0,
+                    quizzesPlayed: 0,
+                    quizzesWon: 0,
+                    rank: isAdmin ? 1 : 999
+                  });
+                }
               }
-            }
-          };
-          fetchProfile();
+            };
+            fetchProfile();
+          }, 0);
         } else {
           setUser(null);
         }
@@ -161,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (!error && data.user && data.session) {
       // User was created and logged in (email confirmation disabled)
-      const isAdmin = email === 'games@learn2earn';
+      const isAdmin = email === 'games@learn2earn.com';
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
