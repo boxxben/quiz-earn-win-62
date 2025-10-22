@@ -47,32 +47,48 @@ export default function AdminPayments() {
   };
 
   const handleApproval = async (transactionId: string, action: 'approve' | 'reject', transaction: any) => {
-    const newStatus = action === 'approve' ? 'approved' : 'rejected';
-    
-    // If approving a deposit, credit user wallet
-    if (action === 'approve' && transaction.type === 'deposit') {
-      // Get user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('balance')
-        .eq('user_id', transaction.user_id)
-        .single();
+    try {
+      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      
+      // If approving a deposit, credit user wallet
+      if (action === 'approve' && transaction.type === 'deposit') {
+        // Get user profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('balance')
+          .eq('user_id', transaction.user_id)
+          .maybeSingle();
 
-      if (profile) {
+        if (profileError) {
+          throw new Error(`Failed to fetch profile: ${profileError.message}`);
+        }
+
+        if (!profile) {
+          throw new Error('User profile not found');
+        }
+
         // Update user balance
-        await supabase
+        const { error: updateError } = await supabase
           .from('profiles')
           .update({ balance: profile.balance + transaction.amount })
           .eq('user_id', transaction.user_id);
-      }
-    }
 
-    const { error } = await supabase
-      .from('transactions')
-      .update({ status: newStatus })
-      .eq('id', transactionId);
-      
-    if (!error) {
+        if (updateError) {
+          throw new Error(`Failed to update balance: ${updateError.message}`);
+        }
+      }
+
+      // Update transaction status
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update({ status: newStatus })
+        .eq('id', transactionId);
+        
+      if (txError) {
+        throw new Error(`Failed to update transaction: ${txError.message}`);
+      }
+
+      // Update local state
       setWithdrawals(prev => prev.map(w => 
         w.id === transactionId ? { ...w, status: newStatus } : w
       ));
@@ -80,7 +96,12 @@ export default function AdminPayments() {
       toast({
         title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
         description: `${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
-        variant: action === 'approve' ? 'default' : 'destructive'
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to process request',
+        variant: 'destructive'
       });
     }
   };
