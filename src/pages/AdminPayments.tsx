@@ -48,16 +48,36 @@ export default function AdminPayments() {
   };
 
   const handleApproval = async (transactionId: string, action: 'approve' | 'reject', transaction: any) => {
+    console.log('handleApproval called:', { transactionId, action, transactionType: transaction.type, amount: transaction.amount });
+    
     try {
       // Prevent double-clicking
-      if (processingIds.has(transactionId)) return;
+      if (processingIds.has(transactionId)) {
+        console.log('Already processing this transaction, skipping');
+        return;
+      }
       
       setProcessingIds(prev => new Set(prev).add(transactionId));
       
       const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      console.log('New status:', newStatus);
       
-      // Get user profile for balance operations
+      // First, update transaction status to prevent race conditions
+      console.log('Updating transaction status...');
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update({ status: newStatus })
+        .eq('id', transactionId)
+        .eq('status', 'pending'); // Only update if still pending
+        
+      if (txError) {
+        console.error('Transaction update error:', txError);
+        throw new Error(`Failed to update transaction: ${txError.message}`);
+      }
+      
+      // Get user profile for balance operations (only if approving)
       if (action === 'approve') {
+        console.log('Fetching user profile...');
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('balance')
@@ -65,48 +85,50 @@ export default function AdminPayments() {
           .maybeSingle();
 
         if (profileError) {
+          console.error('Profile fetch error:', profileError);
           throw new Error(`Failed to fetch profile: ${profileError.message}`);
         }
 
         if (!profile) {
+          console.error('Profile not found for user:', transaction.user_id);
           throw new Error('User profile not found');
         }
+
+        console.log('Current balance:', profile.balance);
 
         // Calculate new balance based on transaction type
         let newBalance: number;
         if (transaction.type === 'deposit') {
           // Credit user wallet for deposits
           newBalance = profile.balance + transaction.amount;
+          console.log('Deposit: Adding', transaction.amount, 'new balance:', newBalance);
         } else if (transaction.type === 'withdrawal') {
           // Deduct from user wallet for withdrawals
           newBalance = profile.balance - transaction.amount;
+          console.log('Withdrawal: Deducting', transaction.amount, 'new balance:', newBalance);
           
           if (newBalance < 0) {
+            console.error('Insufficient balance');
             throw new Error('Insufficient balance for withdrawal');
           }
         } else {
+          console.error('Invalid transaction type:', transaction.type);
           throw new Error('Invalid transaction type');
         }
 
         // Update user balance
+        console.log('Updating user balance to:', newBalance);
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ balance: newBalance })
           .eq('user_id', transaction.user_id);
 
         if (updateError) {
+          console.error('Balance update error:', updateError);
           throw new Error(`Failed to update balance: ${updateError.message}`);
         }
-      }
-
-      // Update transaction status
-      const { error: txError } = await supabase
-        .from('transactions')
-        .update({ status: newStatus })
-        .eq('id', transactionId);
         
-      if (txError) {
-        throw new Error(`Failed to update transaction: ${txError.message}`);
+        console.log('Balance updated successfully');
       }
 
       // Update local state
