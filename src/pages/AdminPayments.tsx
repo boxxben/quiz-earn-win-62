@@ -13,6 +13,7 @@ export default function AdminPayments() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
+  const [processingIds, setProcessingIds] = React.useState<Set<string>>(new Set());
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -48,11 +49,15 @@ export default function AdminPayments() {
 
   const handleApproval = async (transactionId: string, action: 'approve' | 'reject', transaction: any) => {
     try {
+      // Prevent double-clicking
+      if (processingIds.has(transactionId)) return;
+      
+      setProcessingIds(prev => new Set(prev).add(transactionId));
+      
       const newStatus = action === 'approve' ? 'approved' : 'rejected';
       
-      // If approving a deposit, credit user wallet
-      if (action === 'approve' && transaction.type === 'deposit') {
-        // Get user profile
+      // Get user profile for balance operations
+      if (action === 'approve') {
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('balance')
@@ -67,10 +72,26 @@ export default function AdminPayments() {
           throw new Error('User profile not found');
         }
 
+        // Calculate new balance based on transaction type
+        let newBalance: number;
+        if (transaction.type === 'deposit') {
+          // Credit user wallet for deposits
+          newBalance = profile.balance + transaction.amount;
+        } else if (transaction.type === 'withdrawal') {
+          // Deduct from user wallet for withdrawals
+          newBalance = profile.balance - transaction.amount;
+          
+          if (newBalance < 0) {
+            throw new Error('Insufficient balance for withdrawal');
+          }
+        } else {
+          throw new Error('Invalid transaction type');
+        }
+
         // Update user balance
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ balance: profile.balance + transaction.amount })
+          .update({ balance: newBalance })
           .eq('user_id', transaction.user_id);
 
         if (updateError) {
@@ -98,6 +119,13 @@ export default function AdminPayments() {
         description: `${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
       });
     } catch (error: any) {
+      // Remove from processing on error
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(transactionId);
+        return newSet;
+      });
+      
       toast({
         title: 'Error',
         description: error.message || 'Failed to process request',
@@ -200,7 +228,7 @@ export default function AdminPayments() {
                       )}
                     </div>
                     
-                    {(withdrawal.status === 'pending' || withdrawal.status === 'pending_approval') && (
+                    {(withdrawal.status === 'pending' || withdrawal.status === 'pending_approval') && !processingIds.has(withdrawal.id) && (
                       <div className="flex space-x-2 ml-4">
                         <Button
                           size="sm"
@@ -219,6 +247,9 @@ export default function AdminPayments() {
                           Reject
                         </Button>
                       </div>
+                    )}
+                    {processingIds.has(withdrawal.id) && (
+                      <div className="ml-4 text-sm text-muted-foreground">Processing...</div>
                     )}
                   </div>
                 </div>
