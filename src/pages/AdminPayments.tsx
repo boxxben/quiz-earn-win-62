@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, CheckCircle, XCircle, Clock } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { nairaTodiamonds, diamondsToNaira } from '@/lib/currency';
 
 export default function AdminPayments() {
   const { user, hydrated } = useAuth();
@@ -59,20 +60,24 @@ export default function AdminPayments() {
       
       setProcessingIds(prev => new Set(prev).add(transactionId));
       
-      const newStatus = action === 'approve' ? 'approved' : 'rejected';
+      const newStatus = action === 'approve' ? 'completed' : 'failed';
       console.log('New status:', newStatus);
       
       // First, update transaction status to prevent race conditions
       console.log('Updating transaction status...');
-      const { error: txError } = await supabase
+      const { data: updatedRows, error: txError } = await supabase
         .from('transactions')
         .update({ status: newStatus })
         .eq('id', transactionId)
-        .eq('status', 'pending'); // Only update if still pending
+        .eq('status', 'pending') // Only update if still pending
+        .select('id');
         
       if (txError) {
         console.error('Transaction update error:', txError);
         throw new Error(`Failed to update transaction: ${txError.message}`);
+      }
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error('This request has already been processed.');
       }
       
       // Get user profile for balance operations (only if approving)
@@ -99,11 +104,11 @@ export default function AdminPayments() {
         // Calculate new balance based on transaction type
         let newBalance: number;
         if (transaction.type === 'deposit') {
-          // Credit user wallet for deposits
-          newBalance = profile.balance + transaction.amount;
-          console.log('Deposit: Adding', transaction.amount, 'new balance:', newBalance);
+          // Credit user wallet for deposits (convert naira -> diamonds)
+          newBalance = profile.balance + nairaTodiamonds(transaction.amount);
+          console.log('Deposit: Adding', nairaTodiamonds(transaction.amount), 'new balance:', newBalance);
         } else if (transaction.type === 'withdrawal') {
-          // Deduct from user wallet for withdrawals
+          // Deduct from user wallet for withdrawals (amount stored in diamonds)
           newBalance = profile.balance - transaction.amount;
           console.log('Withdrawal: Deducting', transaction.amount, 'new balance:', newBalance);
           
@@ -135,13 +140,7 @@ export default function AdminPayments() {
       setWithdrawals(prev => prev.map(w => 
         w.id === transactionId ? { ...w, status: newStatus } : w
       ));
-      
-      toast({
-        title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
-      });
-    } catch (error: any) {
-      // Remove from processing on error
+      // Clear processing id after success
       setProcessingIds(prev => {
         const newSet = new Set(prev);
         newSet.delete(transactionId);
@@ -149,8 +148,32 @@ export default function AdminPayments() {
       });
       
       toast({
+        title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
+        description: `${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+      });
+      } catch (error: any) {
+      // Remove from processing on error
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(transactionId);
+        return newSet;
+      });
+
+      // Try to sync the transaction status from DB (in case it was already processed)
+      try {
+        const { data: latest } = await supabase
+          .from('transactions')
+          .select('id,status')
+          .eq('id', transactionId)
+          .maybeSingle();
+        if (latest?.status) {
+          setWithdrawals(prev => prev.map(w => w.id === transactionId ? { ...w, status: latest.status } : w));
+        }
+      } catch {}
+      
+      toast({
         title: 'Error',
-        description: error.message || 'Failed to process request',
+        description: (error && error.message) || 'Failed to process request',
         variant: 'destructive'
       });
     }
@@ -159,11 +182,10 @@ export default function AdminPayments() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-      case 'pending_approval':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock size={12} className="mr-1" />Pending</Badge>;
-      case 'approved':
+      case 'completed':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle size={12} className="mr-1" />Approved</Badge>;
-      case 'rejected':
+      case 'failed':
         return <Badge variant="destructive"><XCircle size={12} className="mr-1" />Rejected</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -188,19 +210,19 @@ export default function AdminPayments() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending' || w.status === 'pending_approval').length}</p>
+              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending').length}</p>
               <p className="text-sm text-muted-foreground">Pending</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">{withdrawals.filter(w => w.status === 'approved').length}</p>
+              <p className="text-2xl font-bold text-green-600">{withdrawals.filter(w => w.status === 'completed').length}</p>
               <p className="text-sm text-muted-foreground">Approved</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-red-600">{withdrawals.filter(w => w.status === 'rejected').length}</p>
+              <p className="text-2xl font-bold text-red-600">{withdrawals.filter(w => w.status === 'failed').length}</p>
               <p className="text-sm text-muted-foreground">Rejected</p>
             </CardContent>
           </Card>
@@ -221,7 +243,7 @@ export default function AdminPayments() {
                         <Badge variant={withdrawal.type === 'deposit' ? 'default' : 'secondary'} className="mr-2">
                           {withdrawal.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
                         </Badge>
-                        <h3 className="font-semibold text-lg">{formatCurrency(withdrawal.amount)}</h3>
+                          <h3 className="font-semibold text-lg">{formatCurrency(withdrawal.type === 'deposit' ? withdrawal.amount : diamondsToNaira(withdrawal.amount))}</h3>
                         {getStatusBadge(withdrawal.status)}
                       </div>
                       
@@ -250,7 +272,7 @@ export default function AdminPayments() {
                       )}
                     </div>
                     
-                    {(withdrawal.status === 'pending' || withdrawal.status === 'pending_approval') && !processingIds.has(withdrawal.id) && (
+                    {(withdrawal.status === 'pending') && !processingIds.has(withdrawal.id) && (
                       <div className="flex space-x-2 ml-4">
                         <Button
                           size="sm"

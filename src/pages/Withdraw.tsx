@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTransactions } from '@/contexts/TransactionContext';
+// import { useTransactions } from '@/contexts/TransactionContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds, diamondsToNaira } from '@/lib/currency';
 import { ArrowLeft, Bank, Clock } from '@phosphor-icons/react';
+import { supabase } from '@/integrations/supabase/client';
 
 const banks = [
   'Access Bank', 'Fidelity Bank', 'First Bank of Nigeria',
@@ -20,7 +21,6 @@ const banks = [
 export default function Withdraw() {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
-  const { addTransaction } = useTransactions();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -76,18 +76,29 @@ export default function Withdraw() {
     // Mock withdrawal processing
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Update user balance (deduct withdrawal amount in diamonds)
-    updateUser({ 
-      balance: currentBalance - withdrawDiamonds 
-    });
-    
-    // Record transaction
-    addTransaction({
-      type: 'withdrawal',
-      amount: -withdrawDiamonds,
-      status: 'pending',
-      description: `Withdrawal to ${formData.bankName} - ${formData.accountNumber}`
-    });
+    // Create withdrawal transaction in database (store amount in diamonds)
+    const userId = user?.id;
+    if (!userId) {
+      toast({ title: 'Not authenticated', description: 'Please log in again.', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        type: 'withdrawal',
+        amount: withdrawDiamonds, // store diamonds as positive integer
+        status: 'pending',
+        description: `Withdrawal to ${formData.bankName} - ${formData.accountNumber}`
+      });
+
+    if (error) {
+      toast({ title: 'Error', description: 'Failed to submit withdrawal request.', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
     
     toast({
       title: 'Withdrawal Request Submitted!',
