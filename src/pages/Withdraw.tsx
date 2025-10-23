@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { formatDiamonds, diamondsToNaira } from '@/lib/currency';
+import { formatDiamonds, diamondsToNaira, nairaTodiamonds } from '@/lib/currency';
 import { ArrowLeft, Bank, Clock } from '@phosphor-icons/react';
 import { supabase } from '@/integrations/supabase/client';
+import { DIAMOND_TO_NAIRA_RATE, MIN_WITHDRAWAL_DIAMONDS } from '@/lib/constants';
 
 const banks = [
   'Access Bank', 'Fidelity Bank', 'First Bank of Nigeria',
@@ -33,18 +34,18 @@ export default function Withdraw() {
 
   const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
   const currentBalance = user?.balance || 0;
-  const minWithdrawalDiamonds = 20; // 20 diamonds = ₦1000
+  const minWithdrawalDiamonds = MIN_WITHDRAWAL_DIAMONDS;
   const maxWithdrawalDiamonds = currentBalance;
-  const minWithdrawalNaira = minWithdrawalDiamonds * 50;
+  const minWithdrawalNaira = diamondsToNaira(minWithdrawalDiamonds);
   const maxWithdrawalNaira = diamondsToNaira(maxWithdrawalDiamonds);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const withdrawAmount = parseInt(formData.amount);
-    const withdrawDiamonds = Math.floor(withdrawAmount / 50); // Convert naira to diamonds
+    const withdrawAmountNaira = parseInt(formData.amount);
+    const withdrawDiamonds = nairaTodiamonds(withdrawAmountNaira); // Convert naira to diamonds
     
-    if (withdrawAmount < minWithdrawalNaira) {
+    if (withdrawAmountNaira < minWithdrawalNaira) {
       toast({
         title: 'Invalid Amount',
         description: `Minimum withdrawal is ${formatCurrency(minWithdrawalNaira)} (${formatDiamonds(minWithdrawalDiamonds)})`,
@@ -102,7 +103,7 @@ export default function Withdraw() {
     
     toast({
       title: 'Withdrawal Request Submitted!',
-      description: `Your withdrawal of ${formatCurrency(withdrawAmount)} is being processed. You'll receive it within 24 hours.`,
+      description: `Your withdrawal of ${formatCurrency(withdrawAmountNaira)} (${formatDiamonds(withdrawDiamonds)}) is being processed. You'll receive it within 24 hours.`,
     });
     
     setIsLoading(false);
@@ -177,7 +178,7 @@ export default function Withdraw() {
                 </p>
                 {formData.amount && (
                   <p className="text-sm text-primary font-medium mt-1">
-                    = {formatDiamonds(Math.floor(parseInt(formData.amount) / 50))} will be deducted
+                    = {formatDiamonds(nairaTodiamonds(parseInt(formData.amount)))} will be deducted
                   </p>
                 )}
               </div>
