@@ -15,6 +15,7 @@ export default function AdminPayments() {
   const { toast } = useToast();
   const [withdrawals, setWithdrawals] = React.useState<any[]>([]);
   const [processingIds, setProcessingIds] = React.useState<Set<string>>(new Set());
+  const [userNames, setUserNames] = React.useState<Record<string, string>>({});
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -31,6 +32,20 @@ export default function AdminPayments() {
         .in('type', ['withdrawal', 'deposit'])
         .order('created_at', { ascending: false });
       setWithdrawals(data || []);
+
+      // Fetch user names for display in admin log
+      const userIds = Array.from(new Set((data || []).map((t: any) => t.user_id).filter(Boolean)));
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('user_id,name')
+          .in('user_id', userIds);
+        const map: Record<string, string> = {};
+        (profiles || []).forEach((p: any) => { map[p.user_id] = p.name; });
+        setUserNames(map);
+      } else {
+        setUserNames({});
+      }
     };
     
     if (user?.isAdmin) {
@@ -248,6 +263,10 @@ export default function AdminPayments() {
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                        <div>
+                          <p className="text-muted-foreground">User</p>
+                          <p className="font-medium">{userNames[withdrawal.user_id] || 'Unknown'}</p>
+                        </div>
                         <div>
                           <p className="text-muted-foreground">User ID</p>
                           <p className="font-medium">{withdrawal.user_id?.slice(0, 8)}...</p>

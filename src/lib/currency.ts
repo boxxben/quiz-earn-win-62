@@ -3,7 +3,7 @@ import { DIAMOND_TO_NAIRA_RATE } from './constants';
 // Use the centralized conversion rate
 
 export function nairaTodiamonds(naira: number): number {
-  return Math.floor(naira / DIAMOND_TO_NAIRA_RATE);
+  return Math.round(naira / DIAMOND_TO_NAIRA_RATE);
 }
 
 export function diamondsToNaira(diamonds: number): number {
