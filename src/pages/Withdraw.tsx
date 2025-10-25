@@ -169,8 +169,6 @@ export default function Withdraw() {
                   placeholder="Enter amount to withdraw"
                   value={formData.amount}
                   onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
-                  min={minWithdrawalNaira}
-                  max={maxWithdrawalNaira}
                   required
                 />
                 <p className="text-sm text-muted-foreground mt-1">
