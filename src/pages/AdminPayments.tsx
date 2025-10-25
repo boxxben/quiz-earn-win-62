@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle, XCircle, Clock } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { nairaTodiamonds, diamondsToNaira } from '@/lib/currency';
+import { MAX_WALLET_BALANCE } from '@/lib/constants';
 
 export default function AdminPayments() {
   const { user, hydrated } = useAuth();
@@ -123,9 +124,12 @@ export default function AdminPayments() {
           newBalance = profile.balance + nairaTodiamonds(transaction.amount);
           console.log('Deposit: Adding', nairaTodiamonds(transaction.amount), 'new balance:', newBalance);
         } else if (transaction.type === 'withdrawal') {
-          // Deduct from user wallet for withdrawals (amount stored in diamonds)
-          newBalance = profile.balance - transaction.amount;
-          console.log('Withdrawal: Deducting', transaction.amount, 'new balance:', newBalance);
+          // Deduct from user wallet for withdrawals. Some legacy records may store amount in Naira.
+          const deductionDiamonds = transaction.amount > MAX_WALLET_BALANCE
+            ? nairaTodiamonds(transaction.amount) // amount is in Naira, convert to diamonds
+            : transaction.amount; // amount is already in diamonds
+          newBalance = profile.balance - deductionDiamonds;
+          console.log('Withdrawal: Deducting', deductionDiamonds, 'new balance:', newBalance);
           
           if (newBalance < 0) {
             console.error('Insufficient balance');
@@ -258,7 +262,7 @@ export default function AdminPayments() {
                         <Badge variant={withdrawal.type === 'deposit' ? 'default' : 'secondary'} className="mr-2">
                           {withdrawal.type === 'deposit' ? 'Deposit' : 'Withdrawal'}
                         </Badge>
-                          <h3 className="font-semibold text-lg">{formatCurrency(withdrawal.type === 'deposit' ? withdrawal.amount : diamondsToNaira(withdrawal.amount))}</h3>
+                          <h3 className="font-semibold text-lg">{formatCurrency(withdrawal.type === 'deposit' ? withdrawal.amount : (withdrawal.amount > MAX_WALLET_BALANCE ? withdrawal.amount : diamondsToNaira(withdrawal.amount)))}</h3>
                         {getStatusBadge(withdrawal.status)}
                       </div>
                       
