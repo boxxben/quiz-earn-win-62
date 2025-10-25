@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds, diamondsToNaira, nairaTodiamonds } from '@/lib/currency';
 import { ArrowLeft, Bank, Clock } from '@phosphor-icons/react';
 import { supabase } from '@/integrations/supabase/client';
-import { DIAMOND_TO_NAIRA_RATE, MIN_WITHDRAWAL_DIAMONDS } from '@/lib/constants';
+
 
 const banks = [
   'Access Bank', 'Fidelity Bank', 'First Bank of Nigeria',
@@ -34,10 +34,6 @@ export default function Withdraw() {
 
   const formatCurrency = (amount: number) => `₦${amount.toLocaleString()}`;
   const currentBalance = user?.balance || 0;
-  const minWithdrawalDiamonds = MIN_WITHDRAWAL_DIAMONDS;
-  const maxWithdrawalDiamonds = currentBalance;
-  const minWithdrawalNaira = diamondsToNaira(minWithdrawalDiamonds);
-  const maxWithdrawalNaira = diamondsToNaira(maxWithdrawalDiamonds);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,14 +41,6 @@ export default function Withdraw() {
     const withdrawAmountNaira = parseInt(formData.amount);
     const withdrawDiamonds = nairaTodiamonds(withdrawAmountNaira); // Convert naira to diamonds
     
-    if (withdrawAmountNaira < minWithdrawalNaira) {
-      toast({
-        title: 'Invalid Amount',
-        description: `Minimum withdrawal is ${formatCurrency(minWithdrawalNaira)} (${formatDiamonds(minWithdrawalDiamonds)})`,
-        variant: 'destructive'
-      });
-      return;
-    }
 
     if (withdrawDiamonds > currentBalance) {
       toast({
@@ -100,10 +88,22 @@ export default function Withdraw() {
       setIsLoading(false);
       return;
     }
-    
+    // Deduct balance immediately
+    const newBalance = currentBalance - withdrawDiamonds;
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ balance: newBalance })
+      .eq('user_id', userId);
+    if (profileError) {
+      toast({ title: 'Error', description: 'Failed to update balance.', variant: 'destructive' });
+      setIsLoading(false);
+      return;
+    }
+    await updateUser({ balance: newBalance });
+
     toast({
       title: 'Withdrawal Request Submitted!',
-      description: `Your withdrawal of ${formatCurrency(withdrawAmountNaira)} (${formatDiamonds(withdrawDiamonds)}) is being processed. You'll receive it within 24 hours.`,
+      description: `Your withdrawal of ${formatCurrency(withdrawAmountNaira)} (${formatDiamonds(withdrawDiamonds)}) is being processed.`,
     });
     
     setIsLoading(false);
@@ -172,7 +172,7 @@ export default function Withdraw() {
                   required
                 />
                 <p className="text-sm text-muted-foreground mt-1">
-                  Min: {formatCurrency(minWithdrawalNaira)} ({formatDiamonds(minWithdrawalDiamonds)}) | Max: {formatCurrency(maxWithdrawalNaira)} ({formatDiamonds(maxWithdrawalDiamonds)})
+                  Available: {formatCurrency(diamondsToNaira(currentBalance))} ({formatDiamonds(currentBalance)})
                 </p>
                 {formData.amount && (
                   <p className="text-sm text-primary font-medium mt-1">
