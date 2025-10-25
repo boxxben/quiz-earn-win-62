@@ -212,6 +212,33 @@ export default function Deposit() {
     setAmount('');
   };
 
+  const handleCancelPending = async () => {
+    if (!pendingDeposit) return;
+
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'cancelled', description: `Cancelled by user - ${pendingDeposit?.description || ''}`.trim() })
+      .eq('id', pendingDeposit.id)
+      .eq('status', 'pending');
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to cancel pending deposit. Please try again.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    toast({
+      title: 'Deposit Cancelled',
+      description: 'Your pending deposit has been cancelled.',
+    });
+
+    setPendingDeposit(null);
+    setCountdown(null);
+  };
+
   const formatCountdown = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -262,18 +289,27 @@ export default function Deposit() {
                     <p className="text-sm text-blue-600">{formatCountdown(countdown)}</p>
                   </div>
                 </div>
-                <Button 
-                  onClick={handleHavePaid}
-                  className="w-full"
-                  variant="default"
-                >
-                  I Have Paid
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button 
+                    onClick={handleHavePaid}
+                    className="w-full"
+                    variant="default"
+                  >
+                    I Have Paid
+                  </Button>
+                  <Button 
+                    onClick={handleCancelPending}
+                    className="w-full"
+                    variant="destructive"
+                  >
+                    Cancel Deposit
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
-
+        
         {/* Wallet Limit Warning */}
         {availableSpace <= 200 && (
           <Card className="border-orange-500 bg-orange-50">
