@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-// import { useTransactions } from '@/contexts/TransactionContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds, diamondsToNaira, nairaTodiamonds } from '@/lib/currency';
-import { ArrowLeft, Bank, Clock } from '@phosphor-icons/react';
+import { ArrowLeft, Bank, Clock, ShieldCheck } from '@phosphor-icons/react';
 import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+
+const withdrawalSchema = z.object({
+  amount: z.string().transform(Number).pipe(z.number().positive("Amount must be positive")),
+  bankName: z.string().min(1, "Bank is required"),
+  accountNumber: z.string().length(10, "Account number must be 10 digits"),
+  accountName: z.string().min(1, "Account name is required")
+});
 
 
 const banks = [
@@ -38,76 +45,58 @@ export default function Withdraw() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate with Zod
+    const validation = withdrawalSchema.safeParse(formData);
+    if (!validation.success) {
+      const firstError = validation.error.issues[0];
+      toast({
+        title: 'Validation Error',
+        description: firstError.message,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     const withdrawAmountNaira = parseInt(formData.amount);
-    const withdrawDiamonds = nairaTodiamonds(withdrawAmountNaira); // Convert naira to diamonds
-    
-
-    if (withdrawDiamonds > currentBalance) {
-      toast({
-        title: 'Insufficient Balance',
-        description: 'You cannot withdraw more than your available balance',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (formData.accountNumber.length < 10) {
-      toast({
-        title: 'Invalid Account Number',
-        description: 'Account number must be at least 10 digits',
-        variant: 'destructive'
-      });
-      return;
-    }
+    const withdrawDiamonds = nairaTodiamonds(withdrawAmountNaira);
 
     setIsLoading(true);
     
-    // Mock withdrawal processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Create withdrawal transaction in database (store amount in diamonds)
-    const userId = user?.id;
-    if (!userId) {
-      toast({ title: 'Not authenticated', description: 'Please log in again.', variant: 'destructive' });
-      setIsLoading(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: userId,
-        type: 'withdrawal',
-        amount: withdrawDiamonds, // store diamonds as positive integer
-        status: 'pending',
-        description: `Withdrawal to ${formData.bankName} - ${formData.accountNumber}`
+    try {
+      // Call secure edge function
+      const { data, error } = await supabase.functions.invoke('process-withdrawal', {
+        body: {
+          amount: withdrawDiamonds,
+          bankName: formData.bankName,
+          accountNumber: formData.accountNumber,
+          accountName: formData.accountName
+        }
       });
 
-    if (error) {
-      toast({ title: 'Error', description: 'Failed to submit withdrawal request.', variant: 'destructive' });
-      setIsLoading(false);
-      return;
-    }
-    // Deduct balance immediately
-    const newBalance = currentBalance - withdrawDiamonds;
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ balance: newBalance })
-      .eq('user_id', userId);
-    if (profileError) {
-      toast({ title: 'Error', description: 'Failed to update balance.', variant: 'destructive' });
-      setIsLoading(false);
-      return;
-    }
-    await updateUser({ balance: newBalance });
+      if (error) throw error;
 
-    toast({
-      title: 'Withdrawal Request Submitted!',
-      description: `Your withdrawal of ${formatCurrency(withdrawAmountNaira)} (${formatDiamonds(withdrawDiamonds)}) is being processed.`,
-    });
-    
-    setIsLoading(false);
-    navigate('/wallet');
+      if (data.status === 'error') {
+        throw new Error(data.message);
+      }
+
+      // Update local state with new balance
+      await updateUser({ balance: data.newBalance });
+
+      toast({
+        title: 'Withdrawal Request Submitted!',
+        description: `Your withdrawal of ${formatCurrency(withdrawAmountNaira)} (${formatDiamonds(withdrawDiamonds)}) is being processed.`,
+      });
+      
+      navigate('/wallet');
+    } catch (error: any) {
+      toast({ 
+        title: 'Withdrawal Failed', 
+        description: error.message || 'Failed to process withdrawal',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAccountNumberChange = (value: string) => {
@@ -220,16 +209,24 @@ export default function Withdraw() {
           </CardContent>
         </Card>
 
-        {/* Processing Info */}
-        <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
-          <CardContent className="p-4">
+        {/* Security & Processing Info */}
+        <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-start space-x-3">
-              <Clock size={20} className="text-orange-600 mt-0.5" />
+              <ShieldCheck size={20} className="text-green-600 mt-0.5" />
               <div>
-                <p className="font-medium text-orange-800 dark:text-orange-200 mb-1">Processing Time</p>
-                <p className="text-sm text-orange-700 dark:text-orange-300">
-                  Withdrawals are processed within 24 hours on business days. 
-                  You'll receive a confirmation once the transfer is completed.
+                <p className="font-medium text-green-800 dark:text-green-200 mb-1">Secure Processing</p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  All withdrawals are validated server-side with bank verification before processing.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Clock size={20} className="text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-800 dark:text-green-200 mb-1">Processing Time</p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Withdrawals are reviewed and processed within 24 hours on business days.
                 </p>
               </div>
             </div>

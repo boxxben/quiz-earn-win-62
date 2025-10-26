@@ -1,1 +1,16 @@
 project_id = "sftsrsjocrnxofvypsxv"
+
+[functions.verify-payment]
+verify_jwt = false
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.process-withdrawal]
+verify_jwt = true
+
+[functions.bulk-generate-quizzes]
+verify_jwt = true
+
+[functions.generate-questions]
+verify_jwt = true
