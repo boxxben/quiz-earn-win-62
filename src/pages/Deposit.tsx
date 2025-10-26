@@ -105,14 +105,6 @@ export default function Deposit() {
       return;
     }
 
-    if (currentBalance + diamondsToAdd > maxBalance) {
-      toast({
-        title: 'Deposit Too Large',
-        description: `You can only add ${formatDiamonds(availableSpace)} more (₦${(availableSpace * 50).toLocaleString()})`,
-        variant: 'destructive'
-      });
-      return;
-    }
 
     const userEmail = user?.email;
     const userId = user?.id;
@@ -364,12 +356,11 @@ export default function Deposit() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   min="100"
-                  max={maxDepositNaira}
                   disabled={availableSpace === 0}
                   required
                 />
                 <p className="text-sm text-muted-foreground mt-1">
-                  Min: ₦100 (2💎) | Max: ₦{maxDepositNaira.toLocaleString()} ({formatDiamonds(maxDepositDiamonds)})
+                  Minimum: ₦100 (2💎)
                 </p>
                 {amount && (
                   <p className="text-sm text-primary font-medium mt-1">
