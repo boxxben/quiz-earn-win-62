@@ -9,9 +9,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds, nairaTodiamonds, diamondsToNaira } from '@/lib/currency';
 import { MAX_WALLET_BALANCE } from '@/lib/constants';
-import { ArrowLeft, CreditCard, Bank, Phone, Clock } from '@phosphor-icons/react';
+import { ArrowLeft, CreditCard, Bank, Phone, Clock, ShieldCheck } from '@phosphor-icons/react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+
+const depositSchema = z.object({
+  amount: z.string()
+    .transform(Number)
+    .pipe(
+      z.number()
+        .min(100, "Minimum deposit is ₦100")
+        .positive("Amount must be positive")
+    )
+});
 
 const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
@@ -84,17 +95,20 @@ export default function Deposit() {
   };
 
   const initiateDeposit = async () => {
-    const depositAmount = parseInt(amount);
-    const diamondsToAdd = nairaTodiamonds(depositAmount);
-
-    if (!amount || depositAmount < 100) {
+    // Validate with Zod
+    const validation = depositSchema.safeParse({ amount });
+    if (!validation.success) {
+      const firstError = validation.error.issues[0];
       toast({
-        title: 'Invalid Amount',
-        description: 'Minimum deposit is ₦100',
+        title: 'Validation Error',
+        description: firstError.message,
         variant: 'destructive'
       });
       return;
     }
+
+    const depositAmount = validation.data.amount;
+    const diamondsToAdd = nairaTodiamonds(depositAmount);
 
     if (currentBalance >= maxBalance) {
       toast({
@@ -440,12 +454,26 @@ export default function Deposit() {
         </Card>
 
         {/* Security Notice */}
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="p-4">
-            <p className="text-sm text-primary font-medium mb-2">🔒 Secure Payment</p>
-            <p className="text-sm text-muted-foreground">
-              All transactions are secured with 256-bit SSL encryption and processed by Paystack.
-            </p>
+        <Card className="border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-start space-x-3">
+              <ShieldCheck size={20} className="text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-800 dark:text-green-200 mb-1">🔒 Secure Payment</p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  All transactions are secured with 256-bit SSL encryption and verified server-side. Payments processed by Paystack with webhook confirmation.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start space-x-3">
+              <Clock size={20} className="text-green-600 mt-0.5" />
+              <div>
+                <p className="font-medium text-green-800 dark:text-green-200 mb-1">Instant Verification</p>
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  Your payment is automatically verified and your balance updated within seconds of successful payment.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

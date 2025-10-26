@@ -65,7 +65,7 @@ export default function AdminPayments() {
   };
 
   const handleApproval = async (transactionId: string, action: 'approve' | 'reject', transaction: any) => {
-    console.log('handleApproval called:', { transactionId, action, transactionType: transaction.type, amount: transaction.amount });
+    console.log('handleApproval called:', { transactionId, action, transactionType: transaction.type });
     
     try {
       // Prevent double-clicking
@@ -76,109 +76,37 @@ export default function AdminPayments() {
       
       setProcessingIds(prev => new Set(prev).add(transactionId));
       
-      const newStatus = action === 'approve' ? 'completed' : 'failed';
-      console.log('New status:', newStatus);
-      
-      // First, update transaction status to prevent race conditions
-      console.log('Updating transaction status...');
-      const { data: updatedRows, error: txError } = await supabase
-        .from('transactions')
-        .update({ status: newStatus })
-        .eq('id', transactionId)
-        .eq('status', 'pending') // Only update if still pending
-        .select('id');
-        
-      if (txError) {
-        console.error('Transaction update error:', txError);
-        throw new Error(`Failed to update transaction: ${txError.message}`);
-      }
-      if (!updatedRows || updatedRows.length === 0) {
-        throw new Error('This request has already been processed.');
-      }
-      
-      // Get user profile for balance operations (only if approving)
-      if (action === 'approve') {
-        console.log('Fetching user profile...');
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('balance')
-          .eq('user_id', transaction.user_id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-          throw new Error(`Failed to fetch profile: ${profileError.message}`);
+      // Call secure edge function
+      const { data, error } = await supabase.functions.invoke('admin-approve-payment', {
+        body: {
+          transactionId,
+          action
         }
+      });
 
-        if (!profile) {
-          console.error('Profile not found for user:', transaction.user_id);
-          throw new Error('User profile not found');
-        }
+      if (error) throw error;
 
-        console.log('Current balance:', profile.balance);
-
-        // Calculate new balance based on transaction type
-        let newBalance: number;
-        if (transaction.type === 'deposit') {
-          // Credit user wallet for deposits (convert naira -> diamonds)
-          newBalance = profile.balance + nairaTodiamonds(transaction.amount);
-          console.log('Deposit: Adding', nairaTodiamonds(transaction.amount), 'new balance:', newBalance);
-        } else if (transaction.type === 'withdrawal') {
-          // Deduct from user wallet for withdrawals. Some legacy records may store amount in Naira.
-          const deductionDiamonds = transaction.amount > MAX_WALLET_BALANCE
-            ? nairaTodiamonds(transaction.amount) // amount is in Naira, convert to diamonds
-            : transaction.amount; // amount is already in diamonds
-          newBalance = profile.balance - deductionDiamonds;
-          console.log('Withdrawal: Deducting', deductionDiamonds, 'new balance:', newBalance);
-          
-          if (newBalance < 0) {
-            console.error('Insufficient balance');
-            throw new Error('Insufficient balance for withdrawal');
-          }
-        } else {
-          console.error('Invalid transaction type:', transaction.type);
-          throw new Error('Invalid transaction type');
-        }
-
-        // Update user balance
-        console.log('Updating user balance to:', newBalance);
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ balance: newBalance })
-          .eq('user_id', transaction.user_id);
-
-        if (updateError) {
-          console.error('Balance update error:', updateError);
-          throw new Error(`Failed to update balance: ${updateError.message}`);
-        }
-        
-        console.log('Balance updated successfully');
+      if (data.status === 'error') {
+        throw new Error(data.message);
       }
 
       // Update local state
       setWithdrawals(prev => prev.map(w => 
-        w.id === transactionId ? { ...w, status: newStatus } : w
+        w.id === transactionId ? { ...w, status: action === 'approve' ? 'completed' : 'failed' } : w
       ));
-      // Clear processing id after success
-      setProcessingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(transactionId);
-        return newSet;
-      });
       
       toast({
         title: `Request ${action === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `${transaction.type === 'deposit' ? 'Deposit' : 'Withdrawal'} request has been ${action === 'approve' ? 'approved' : 'rejected'} successfully`,
+        description: data.message,
       });
-      } catch (error: any) {
-      // Remove from processing on error
-      setProcessingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(transactionId);
-        return newSet;
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to process request',
+        variant: 'destructive'
       });
 
-      // Try to sync the transaction status from DB (in case it was already processed)
+      // Try to sync the transaction status from DB
       try {
         const { data: latest } = await supabase
           .from('transactions')
@@ -189,11 +117,11 @@ export default function AdminPayments() {
           setWithdrawals(prev => prev.map(w => w.id === transactionId ? { ...w, status: latest.status } : w));
         }
       } catch {}
-      
-      toast({
-        title: 'Error',
-        description: (error && error.message) || 'Failed to process request',
-        variant: 'destructive'
+    } finally {
+      setProcessingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(transactionId);
+        return newSet;
       });
     }
   };
