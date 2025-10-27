@@ -54,7 +54,18 @@ export function QuizAvailabilityProvider({ children }: { children: React.ReactNo
       return false; // Quiz not available
     }
 
-    // Mark quiz as unavailable (first come first serve)
+    // Update database to mark quiz as unavailable
+    const { error } = await supabase
+      .from('quizzes')
+      .update({ is_available: false })
+      .eq('id', quizId);
+
+    if (error) {
+      console.error('Error updating quiz availability:', error);
+      return false;
+    }
+
+    // Mark quiz as unavailable in local state (first come first serve)
     setAvailableQuizzes(prev => 
       prev.map(q => 
         q.id === quizId 
