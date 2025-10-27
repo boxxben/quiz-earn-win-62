@@ -74,9 +74,35 @@ export default function AdminQuizzes() {
     }
   };
 
-  const handleQuizAction = (quizId: string, action: string) => {
+  const handleQuizAction = async (quizId: string, action: string) => {
     console.log(`${action} quiz ${quizId}`);
-    // Here you would implement the actual quiz management logic
+    
+    if (action === 'view') {
+      navigate(`/quiz/${quizId}`);
+    } else if (action === 'edit') {
+      navigate(`/admin/quiz/${quizId}/edit`);
+    } else if (action === 'delete') {
+      if (confirm('Are you sure you want to delete this quiz?')) {
+        const { error } = await supabase
+          .from('quizzes')
+          .delete()
+          .eq('id', quizId);
+        
+        if (error) {
+          toast({
+            title: "Delete Failed",
+            description: "Failed to delete quiz. Please try again.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Quiz Deleted",
+            description: "Quiz has been successfully deleted.",
+          });
+          refreshQuizzes();
+        }
+      }
+    }
   };
 
   const handleBulkGenerate = async () => {

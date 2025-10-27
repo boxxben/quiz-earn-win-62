@@ -270,9 +270,9 @@ export default function Quizzes() {
                       variant="outline" 
                       size="sm" 
                       disabled={!quiz.isAvailable}
-                      onClick={() => navigate(`/quiz/${quiz.id}`)}
+                      onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee)}
                     >
-                      {!quiz.isAvailable ? 'Taken' : 'View Details'}
+                      {!quiz.isAvailable ? 'Taken' : 'Join Quiz'}
                     </Button>
                   </div>
                 </CardContent>
