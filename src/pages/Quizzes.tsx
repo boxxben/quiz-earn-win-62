@@ -212,13 +212,10 @@ export default function Quizzes() {
                       </div>
                       <Button 
                         size="sm" 
-                        disabled={!quiz.isAvailable || startingQuiz === quiz.id}
                         onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee)}
                         className="min-w-[80px]"
                       >
-                        {startingQuiz === quiz.id ? 'Starting...' : 
-                         !quiz.isAvailable ? 'Taken' : 
-                         'Join Now'}
+                        Join Now
                       </Button>
                     </div>
                   </CardContent>
@@ -269,10 +266,9 @@ export default function Quizzes() {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      disabled={!quiz.isAvailable}
                       onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee)}
                     >
-                      {!quiz.isAvailable ? 'Taken' : 'Join Quiz'}
+                      Join Quiz
                     </Button>
                   </div>
                 </CardContent>

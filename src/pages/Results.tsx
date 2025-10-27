@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/currency';
-import { MAX_WALLET_BALANCE } from '@/lib/constants';
 import { 
   Trophy, 
   CheckCircle, 
@@ -17,6 +15,9 @@ import {
   Target,
   Clock
 } from '@phosphor-icons/react';
+import { formatCurrency } from '@/lib/currency';
+import { MAX_WALLET_BALANCE } from '@/lib/constants';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Results() {
   const location = useLocation();
@@ -25,7 +26,8 @@ export default function Results() {
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
   
-  const { score, totalQuestions, answers, quizTitle } = location.state || {};
+  const { score, totalQuestions, answers, quizTitle, finalReward, balanceChange, isQuit } = location.state || {};
+  const quizId = location.pathname.split('/')[2]; // Extract quizId from URL
   
   if (!score && score !== 0) {
     navigate('/home');
@@ -47,7 +49,7 @@ export default function Results() {
   const earnings = calculateEarnings();
   
   React.useEffect(() => {
-    if (user) {
+    if (user && quizId) {
       // Calculate new balance but enforce limit
       const newBalance = Math.min(user.balance + earnings, MAX_WALLET_BALANCE);
       
@@ -58,6 +60,25 @@ export default function Results() {
         quizzesPlayed: (user.quizzesPlayed || 0) + 1,
         quizzesWon: percentage >= 70 ? (user.quizzesWon || 0) + 1 : user.quizzesWon
       });
+
+      // Save quiz attempt to database
+      const saveAttempt = async () => {
+        const { error } = await supabase
+          .from('quiz_attempts')
+          .insert({
+            user_id: user.id,
+            quiz_id: quizId,
+            score: score,
+            total_questions: totalQuestions,
+            reward_earned: earnings
+          });
+        
+        if (error) {
+          console.error('Error saving quiz attempt:', error);
+        }
+      };
+      
+      saveAttempt();
 
       // Record transaction for earnings (if any)
       if (earnings > 0) {

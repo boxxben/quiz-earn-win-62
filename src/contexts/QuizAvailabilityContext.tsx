@@ -50,30 +50,11 @@ export function QuizAvailabilityProvider({ children }: { children: React.ReactNo
   const startQuiz = async (quizId: string): Promise<boolean> => {
     const quiz = availableQuizzes.find(q => q.id === quizId);
     
-    if (!quiz || !quiz.isAvailable) {
-      return false; // Quiz not available
+    if (!quiz) {
+      return false; // Quiz not found
     }
 
-    // Update database to mark quiz as unavailable
-    const { error } = await supabase
-      .from('quizzes')
-      .update({ is_available: false })
-      .eq('id', quizId);
-
-    if (error) {
-      console.error('Error updating quiz availability:', error);
-      return false;
-    }
-
-    // Mark quiz as unavailable in local state (first come first serve)
-    setAvailableQuizzes(prev => 
-      prev.map(q => 
-        q.id === quizId 
-          ? { ...q, isAvailable: false }
-          : q
-      )
-    );
-
+    // Users can now retake quizzes - no need to check availability
     return true; // Successfully started quiz
   };
 
