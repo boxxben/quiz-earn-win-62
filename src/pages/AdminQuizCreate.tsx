@@ -46,6 +46,8 @@ export default function AdminQuizCreate() {
   ]);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
 
   // Generate progressive rewards automatically
   React.useEffect(() => {
@@ -140,9 +142,58 @@ export default function AdminQuizCreate() {
     }
   };
 
-  const handleSubmit = () => {
-    // Check minimum balance (₦5 minimum or admin-defined amount)
-    const minimumRequired = Math.max(5, formData.entryFee);
+  const handleJsonPaste = () => {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      const quizzesArray = Array.isArray(parsed) ? parsed : [parsed];
+      
+      if (quizzesArray.length > 20) {
+        toast({
+          title: "Too Many Quizzes",
+          description: "Maximum 20 quizzes allowed at once",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Fill form with first quiz data
+      const firstQuiz = quizzesArray[0];
+      if (firstQuiz) {
+        setFormData({
+          title: firstQuiz.title || '',
+          description: firstQuiz.description || '',
+          category: firstQuiz.category || '',
+          entryFee: firstQuiz.entryFee || 500,
+          totalPrizeAmount: firstQuiz.prizePool || 5000,
+          numberOfQuestions: firstQuiz.questions?.length || 5,
+          penaltyAmount: firstQuiz.penaltyAmount || 50
+        });
+
+        if (firstQuiz.questions) {
+          setQuestions(firstQuiz.questions.map((q: any) => ({
+            text: q.text || '',
+            options: q.options || ['', '', '', ''],
+            correctOption: q.correctOption || 0,
+            timeLimit: q.timeLimit || 30
+          })));
+        }
+      }
+
+      toast({
+        title: "JSON Loaded",
+        description: `Loaded ${quizzesArray.length} quiz(zes) from JSON`,
+      });
+      setJsonInput('');
+    } catch (error) {
+      toast({
+        title: "Invalid JSON",
+        description: "Please paste valid quiz JSON format",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!formData.title || !formData.description || !formData.category) {
       toast({
         title: "Missing Information",
@@ -165,15 +216,55 @@ export default function AdminQuizCreate() {
       }
     }
 
-    // Create quiz (this would normally send to backend)
-    console.log('Creating quiz:', { formData, questions, rewards });
-    
-    toast({
-      title: "Quiz Created Successfully",
-      description: `${formData.title} has been created and is ready for players`,
-    });
+    setIsSaving(true);
+    try {
+      // Calculate start and end times (start in 1 hour, duration 15 mins)
+      const startTime = new Date(Date.now() + 60 * 60 * 1000);
+      const endTime = new Date(startTime.getTime() + 15 * 60 * 1000);
 
-    navigate('/admin/quizzes');
+      const { data, error } = await supabase
+        .from('quizzes')
+        .insert([{
+          title: formData.title,
+          description: formData.description,
+          entry_fee: formData.entryFee,
+          prize_pool: formData.totalPrizeAmount,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          duration: 15,
+          status: 'upcoming',
+          is_available: true,
+          questions: questions.map((q, idx) => ({
+            id: `q${idx + 1}`,
+            text: q.text,
+            options: q.options,
+            correctOption: q.correctOption,
+            timeLimit: q.timeLimit
+          })) as any,
+          reward_progression: rewards as any,
+          penalty_amount: formData.penaltyAmount
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Quiz Created Successfully",
+        description: `${formData.title} has been created and is ready for players`,
+      });
+
+      navigate('/admin/quizzes');
+    } catch (error) {
+      console.error('Error creating quiz:', error);
+      toast({
+        title: "Creation Failed",
+        description: "Failed to create quiz. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -190,6 +281,28 @@ export default function AdminQuizCreate() {
       </div>
 
       <div className="px-6 py-6 space-y-6">
+        {/* JSON Paste Feature */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Quick Fill from JSON</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="jsonInput">Paste Quiz JSON (up to 20 quizzes)</Label>
+              <Textarea
+                id="jsonInput"
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                placeholder='Paste your quiz JSON here...'
+                className="min-h-[100px] font-mono text-sm"
+              />
+            </div>
+            <Button onClick={handleJsonPaste} variant="secondary" className="w-full">
+              Load from JSON
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Basic Info */}
         <Card>
           <CardHeader>
@@ -396,11 +509,11 @@ export default function AdminQuizCreate() {
 
         {/* Submit */}
         <div className="flex space-x-4">
-          <Button variant="outline" onClick={() => navigate('/admin/quizzes')} className="flex-1">
+          <Button variant="outline" onClick={() => navigate('/admin/quizzes')} disabled={isSaving} className="flex-1">
             Cancel
           </Button>
-          <Button onClick={handleSubmit} className="flex-1">
-            Create Quiz
+          <Button onClick={handleSubmit} disabled={isSaving} className="flex-1">
+            {isSaving ? 'Creating...' : 'Create Quiz'}
           </Button>
         </div>
       </div>
