@@ -24,11 +24,16 @@ export default function Quizzes() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { availableQuizzes, startQuiz } = useQuizAvailability();
+  const { availableQuizzes, startQuiz, refreshQuizzes } = useQuizAvailability();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFeeRange, setSelectedFeeRange] = useState('All');
   const [startingQuiz, setStartingQuiz] = useState<string | null>(null);
+
+  // Refresh quizzes when component mounts
+  React.useEffect(() => {
+    refreshQuizzes();
+  }, []);
 
   const formatTime = (date: Date) => {
     const now = new Date();

@@ -35,6 +35,11 @@ export default function AdminQuizzes() {
     }
   }, [hydrated, user?.isAdmin, navigate]);
 
+  // Refresh quizzes when component mounts
+  React.useEffect(() => {
+    refreshQuizzes();
+  }, []);
+
   if (!hydrated) {
     return null;
   }
