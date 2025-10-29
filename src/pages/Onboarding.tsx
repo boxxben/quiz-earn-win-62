@@ -32,7 +32,7 @@ export default function Onboarding() {
             <Brain size={32} weight="fill" />
           </div>
         </div>
-        <h1 className="text-4xl font-bold text-foreground mb-2">Learn2Earn</h1>
+        <h1 className="text-4xl font-bold text-foreground mb-2">Quiz2cash</h1>
         <p className="text-xl text-muted-foreground">Turn Knowledge Into Cash</p>
       </div>
 

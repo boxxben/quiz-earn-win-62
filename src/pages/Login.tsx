@@ -58,7 +58,7 @@ export default function Login() {
         </Button>
         <div className="flex items-center ml-4">
           <Brain size={24} className="text-primary mr-2" />
-          <span className="font-bold text-lg">Learn2Earn</span>
+          <span className="font-bold text-lg">Quiz2cash</span>
         </div>
       </div>
 

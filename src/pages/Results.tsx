@@ -61,9 +61,10 @@ export default function Results() {
         quizzesWon: percentage >= 70 ? (user.quizzesWon || 0) + 1 : user.quizzesWon
       });
 
-      // Save quiz attempt to database
+      // Save quiz attempt and mark quiz as unavailable
       const saveAttempt = async () => {
-        const { error } = await supabase
+        // Insert quiz attempt
+        const { error: attemptError } = await supabase
           .from('quiz_attempts')
           .insert({
             user_id: user.id,
@@ -73,8 +74,18 @@ export default function Results() {
             reward_earned: earnings
           });
         
-        if (error) {
-          console.error('Error saving quiz attempt:', error);
+        if (attemptError) {
+          console.error('Error saving quiz attempt:', attemptError);
+        }
+
+        // Mark quiz as unavailable (no one can take it again)
+        const { error: updateError } = await supabase
+          .from('quizzes')
+          .update({ is_available: false })
+          .eq('id', quizId);
+        
+        if (updateError) {
+          console.error('Error marking quiz unavailable:', updateError);
         }
       };
       

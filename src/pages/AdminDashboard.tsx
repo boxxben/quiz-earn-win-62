@@ -87,7 +87,7 @@ export default function AdminDashboard() {
             Logout
           </Button>
         </div>
-        <p className="text-primary-foreground/80">Manage your Learn2Earn platform</p>
+        <p className="text-primary-foreground/80">Manage your Quiz2cash platform</p>
       </div>
 
       <div className="px-6 py-6 space-y-6">

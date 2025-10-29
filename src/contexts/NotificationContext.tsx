@@ -29,7 +29,7 @@ const defaultContextValue: NotificationContextType = {
 const mockNotifications: Notification[] = [
   {
     id: '1',
-    title: 'Welcome to Learn2Earn!',
+    title: 'Welcome to Quiz2cash!',
     message: 'Start playing quizzes and earning money today',
     type: 'system',
     isRead: false,

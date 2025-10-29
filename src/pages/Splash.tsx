@@ -108,11 +108,11 @@ const Splash = () => {
           <Sparkles className="absolute bottom-1/4 right-1/3 w-6 h-6 text-neon-pink/60 animate-pulse" style={{animationDelay: '1.5s'}} />
         </div>
 
-        {/* Enhanced Learn2Earn Title with subtitle */}
+        {/* Enhanced Quiz2cash Title with subtitle */}
         <div className={`transition-all duration-1500 transform ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-20 opacity-0 scale-90'}`}>
           <div className="relative mb-4">
             <h1 className="text-4xl sm:text-6xl md:text-8xl lg:text-9xl font-bold bg-gradient-gaming bg-clip-text text-transparent tracking-tight animate-neon-pulse drop-shadow-2xl">
-              Learn2Earn
+              Quiz2cash
             </h1>
             {/* Animated underline */}
             <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-primary rounded-full animate-pulse"></div>
