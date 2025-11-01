@@ -88,9 +88,13 @@ serve(async (req) => {
       );
     }
 
-    // Verify amount matches
-    if (transaction.amount !== amountInNaira) {
-      console.error(`Amount mismatch: expected ${transaction.amount}, got ${amountInNaira}`);
+    // Convert expected Naira to diamonds for comparison
+    const expectedDiamonds = Math.floor(transaction.amount / 50);
+    const receivedDiamonds = Math.floor(amountInNaira / 50);
+    
+    // Verify amount matches (compare in diamonds)
+    if (expectedDiamonds !== receivedDiamonds) {
+      console.error(`Amount mismatch: expected ${expectedDiamonds}💎 (₦${transaction.amount}), got ${receivedDiamonds}💎 (₦${amountInNaira})`);
       
       await supabaseAdmin
         .from("transactions")

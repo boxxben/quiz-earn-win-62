@@ -37,12 +37,12 @@ export default function Results() {
   const percentage = Math.round((score / totalQuestions) * 100);
   const rank = Math.ceil(Math.random() * 15) + 1; // Mock rank
   
-  // Calculate earnings based on performance
+  // Calculate earnings in diamonds based on performance
   const calculateEarnings = () => {
-    if (percentage >= 90) return 2500; // Top performer
-    if (percentage >= 80) return 1500; // Good performer
-    if (percentage >= 70) return 800;  // Average performer
-    if (percentage >= 60) return 400;  // Below average
+    if (percentage >= 90) return 50; // Top performer (50 diamonds = ₦2500)
+    if (percentage >= 80) return 30; // Good performer (30 diamonds = ₦1500)
+    if (percentage >= 70) return 16;  // Average performer (16 diamonds = ₦800)
+    if (percentage >= 60) return 8;  // Below average (8 diamonds = ₦400)
     return 0; // No earnings for <60%
   };
 
