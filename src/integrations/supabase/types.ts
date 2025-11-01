@@ -23,6 +23,7 @@ export type Database = {
           email: string
           id: string
           is_admin: boolean | null
+          is_suspended: boolean
           name: string
           quizzes_played: number
           quizzes_won: number
@@ -39,6 +40,7 @@ export type Database = {
           email: string
           id?: string
           is_admin?: boolean | null
+          is_suspended?: boolean
           name: string
           quizzes_played?: number
           quizzes_won?: number
@@ -55,6 +57,7 @@ export type Database = {
           email?: string
           id?: string
           is_admin?: boolean | null
+          is_suspended?: boolean
           name?: string
           quizzes_played?: number
           quizzes_won?: number
