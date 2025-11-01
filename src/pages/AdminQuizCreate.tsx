@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,8 @@ export default function AdminQuizCreate() {
   const { user, hydrated } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { id: quizId } = useParams();
+  const isEditMode = !!quizId;
   
   // Redirect if not admin (after hydration)
   React.useEffect(() => {
@@ -48,6 +50,59 @@ export default function AdminQuizCreate() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
+  const [isLoading, setIsLoading] = useState(isEditMode);
+
+  // Load quiz data when in edit mode
+  React.useEffect(() => {
+    if (isEditMode && quizId) {
+      loadQuizData();
+    }
+  }, [isEditMode, quizId]);
+
+  const loadQuizData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('id', quizId)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        const startTime = new Date(data.start_time);
+        const endTime = new Date(data.end_time);
+        
+        setFormData({
+          title: data.title,
+          description: data.description || '',
+          category: '', // Add category to DB if needed
+          entryFee: data.entry_fee,
+          totalPrizeAmount: data.prize_pool,
+          numberOfQuestions: (data.questions as any)?.length || 5,
+          penaltyAmount: data.penalty_amount
+        });
+
+        if (data.questions) {
+          setQuestions(data.questions as any);
+        }
+
+        if (data.reward_progression) {
+          setRewards(data.reward_progression as any);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading quiz:', error);
+      toast({
+        title: "Load Failed",
+        description: "Failed to load quiz data.",
+        variant: "destructive"
+      });
+      navigate('/admin/quizzes');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Generate progressive rewards automatically
   React.useEffect(() => {
@@ -222,50 +277,78 @@ export default function AdminQuizCreate() {
       const startTime = new Date(Date.now() + 60 * 60 * 1000);
       const endTime = new Date(startTime.getTime() + 15 * 60 * 1000);
 
-      const { data, error } = await supabase
-        .from('quizzes')
-        .insert([{
-          title: formData.title,
-          description: formData.description,
-          entry_fee: formData.entryFee,
-          prize_pool: formData.totalPrizeAmount,
-          start_time: startTime.toISOString(),
-          end_time: endTime.toISOString(),
-          duration: 15,
-          status: 'upcoming',
-          is_available: true,
-          questions: questions.map((q, idx) => ({
-            id: `q${idx + 1}`,
-            text: q.text,
-            options: q.options,
-            correctOption: q.correctOption,
-            timeLimit: q.timeLimit
-          })) as any,
-          reward_progression: rewards as any,
-          penalty_amount: formData.penaltyAmount
-        }])
-        .select()
-        .single();
+      const quizData = {
+        title: formData.title,
+        description: formData.description,
+        entry_fee: formData.entryFee,
+        prize_pool: formData.totalPrizeAmount,
+        start_time: startTime.toISOString(),
+        end_time: endTime.toISOString(),
+        duration: 15,
+        status: 'upcoming',
+        is_available: true,
+        questions: questions.map((q, idx) => ({
+          id: `q${idx + 1}`,
+          text: q.text,
+          options: q.options,
+          correctOption: q.correctOption,
+          timeLimit: q.timeLimit
+        })) as any,
+        reward_progression: rewards as any,
+        penalty_amount: formData.penaltyAmount
+      };
 
-      if (error) throw error;
+      if (isEditMode) {
+        // Update existing quiz
+        const { error } = await supabase
+          .from('quizzes')
+          .update(quizData)
+          .eq('id', quizId);
 
-      toast({
-        title: "Quiz Created Successfully",
-        description: `${formData.title} has been created and is ready for players`,
-      });
+        if (error) throw error;
+
+        toast({
+          title: "Quiz Updated Successfully",
+          description: `${formData.title} has been updated`,
+        });
+      } else {
+        // Create new quiz
+        const { error } = await supabase
+          .from('quizzes')
+          .insert([quizData])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        toast({
+          title: "Quiz Created Successfully",
+          description: `${formData.title} has been created and is ready for players`,
+        });
+      }
 
       navigate('/admin/quizzes');
     } catch (error) {
-      console.error('Error creating quiz:', error);
+      console.error('Error saving quiz:', error);
       toast({
-        title: "Creation Failed",
-        description: "Failed to create quiz. Please try again.",
+        title: isEditMode ? "Update Failed" : "Creation Failed",
+        description: `Failed to ${isEditMode ? 'update' : 'create'} quiz. Please try again.`,
         variant: "destructive"
       });
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading quiz data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -275,9 +358,9 @@ export default function AdminQuizCreate() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/admin/quizzes')} className="text-primary-foreground hover:bg-white/20">
             <ArrowLeft size={20} />
           </Button>
-          <h1 className="text-xl font-bold ml-4">Create New Quiz</h1>
+          <h1 className="text-xl font-bold ml-4">{isEditMode ? 'Edit Quiz' : 'Create New Quiz'}</h1>
         </div>
-        <p className="text-primary-foreground/80">Set up a new quiz with progressive rewards</p>
+        <p className="text-primary-foreground/80">{isEditMode ? 'Update quiz details and questions' : 'Set up a new quiz with progressive rewards'}</p>
       </div>
 
       <div className="px-6 py-6 space-y-6">
@@ -513,7 +596,7 @@ export default function AdminQuizCreate() {
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSaving} className="flex-1">
-            {isSaving ? 'Creating...' : 'Create Quiz'}
+            {isSaving ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update Quiz' : 'Create Quiz')}
           </Button>
         </div>
       </div>
