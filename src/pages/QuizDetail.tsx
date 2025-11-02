@@ -28,15 +28,29 @@ export default function QuizDetail() {
   const { toast } = useToast();
   
   const [quiz, setQuiz] = React.useState<any>(null);
+  const [hasAttempted, setHasAttempted] = React.useState(false);
+  const [isCheckingAttempt, setIsCheckingAttempt] = React.useState(true);
 
   React.useEffect(() => {
-    const fetchQuiz = async () => {
-      const { data } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
-      setQuiz(data);
+    const fetchQuizAndAttempt = async () => {
+      const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
+      setQuiz(quizData);
+      
+      if (user) {
+        const { data: attempts } = await supabase
+          .from('quiz_attempts')
+          .select('id')
+          .eq('quiz_id', quizId)
+          .eq('user_id', user.id);
+        
+        setHasAttempted(attempts && attempts.length > 0);
+      }
+      
+      setIsCheckingAttempt(false);
     };
     
-    fetchQuiz();
-  }, [quizId]);
+    fetchQuizAndAttempt();
+  }, [quizId, user]);
   
   if (!quiz) {
     return (
@@ -66,6 +80,7 @@ export default function QuizDetail() {
 
   const canJoin = () => {
     if (!user) return false;
+    if (hasAttempted) return false;
     if (user.balance < quiz.entryFee) return false;
     if (!quiz.isAvailable) return false;
     if (quiz.status === 'completed') return false;
@@ -231,7 +246,16 @@ export default function QuizDetail() {
 
         {/* Join Button */}
         <div className="space-y-3">
-          {!canJoin() && user && user.balance < quiz.entryFee && (
+          {hasAttempted && (
+            <Card className="border-destructive/30 bg-destructive/5">
+              <CardContent className="p-4 text-center">
+                <p className="text-sm text-destructive mb-2">Already Attempted</p>
+                <p className="text-xs text-muted-foreground">You cannot retake a quiz you've already attempted</p>
+              </CardContent>
+            </Card>
+          )}
+          
+          {!canJoin() && user && user.balance < quiz.entryFee && !hasAttempted && (
             <Card className="border-destructive/30 bg-destructive/5">
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-destructive mb-2">Insufficient Balance</p>
@@ -245,7 +269,7 @@ export default function QuizDetail() {
             </Card>
           )}
           
-          {!quiz.isAvailable && (
+          {!quiz.isAvailable && !hasAttempted && (
             <Card className="border-destructive/30 bg-destructive/5">
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-destructive">Quiz Taken</p>
@@ -256,11 +280,11 @@ export default function QuizDetail() {
 
           <Button 
             onClick={handleJoinQuiz}
-            disabled={!canJoin()}
+            disabled={!canJoin() || isCheckingAttempt}
             size="lg"
             className="w-full"
           >
-            {quiz.status === 'active' ? 'Join Now' : 'Join Quiz'} - {formatCurrency(quiz.entryFee)}
+            {isCheckingAttempt ? 'Loading...' : hasAttempted ? 'Already Attempted' : `${quiz.status === 'active' ? 'Join Now' : 'Join Quiz'} - ${formatCurrency(quiz.entryFee)}`}
           </Button>
         </div>
       </div>

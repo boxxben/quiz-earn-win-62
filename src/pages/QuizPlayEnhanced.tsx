@@ -9,6 +9,7 @@ import { Clock, ArrowRight, TrendUp, Warning } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds } from '@/lib/currency';
+import { supabase } from '@/integrations/supabase/client';
 import { MAX_WALLET_BALANCE } from '@/lib/constants';
 
 export default function QuizPlayEnhanced() {
@@ -19,6 +20,7 @@ export default function QuizPlayEnhanced() {
   const { availableQuizzes } = useQuizAvailability();
   
   const quiz = availableQuizzes.find(q => q.id === quizId);
+  const [randomizedQuestions, setRandomizedQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -31,6 +33,14 @@ export default function QuizPlayEnhanced() {
   const [feedbackAnimation, setFeedbackAnimation] = useState('');
   const [diamondOverlay, setDiamondOverlay] = useState({ show: false, amount: 0, type: '' });
   const [showWinAnimation, setShowWinAnimation] = useState(false);
+  
+  // Randomize questions on mount
+  useEffect(() => {
+    if (quiz?.questions) {
+      const shuffled = [...quiz.questions].sort(() => Math.random() - 0.5);
+      setRandomizedQuestions(shuffled);
+    }
+  }, [quiz]);
   
   // Sound functions
   const playSound = (frequency: number, duration: number, type: 'sine' | 'square' | 'sawtooth' = 'sine') => {
@@ -70,13 +80,15 @@ export default function QuizPlayEnhanced() {
   };
   const playQuitSound = () => playSound(196, 0.8, 'sawtooth');
 
-  if (!quiz || !quiz.questions || quiz.questions.length === 0) {
-    navigate('/quizzes');
+  if (!quiz || !quiz.questions || quiz.questions.length === 0 || randomizedQuestions.length === 0) {
+    if (!quiz) {
+      navigate('/quizzes');
+    }
     return null;
   }
 
-  const currentQuestion = quiz.questions[currentQuestionIndex];
-  const totalQuestions = quiz.questions.length;
+  const currentQuestion = randomizedQuestions[currentQuestionIndex];
+  const totalQuestions = randomizedQuestions.length;
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
   const midwayPoint = Math.floor(totalQuestions / 2);
   const isAtMidway = currentQuestionIndex === midwayPoint && !hasShownWarning;
@@ -172,13 +184,13 @@ export default function QuizPlayEnhanced() {
     setTimeout(() => setFeedbackAnimation(''), 1000);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
         // Quiz completed, navigate to results
         const correctCount = answers.reduce((count, answer, index) => {
-          return count + (answer === quiz.questions[index]?.correctOption ? 1 : 0);
+          return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
         }, 0);
       
       const finalCorrectCount = selectedAnswer === currentQuestion.correctOption 
@@ -186,6 +198,15 @@ export default function QuizPlayEnhanced() {
         : correctCount;
       
       const finalReward = finalCorrectCount > midwayPoint ? accumulatedReward : 0;
+      
+      // Record quiz attempt
+      await supabase.from('quiz_attempts').insert({
+        user_id: user!.id,
+        quiz_id: quizId,
+        score: finalCorrectCount,
+        total_questions: totalQuestions,
+        reward_earned: finalReward
+      });
       
       // Show win animation and play sound if all questions correct
       if (finalCorrectCount === totalQuestions) {
@@ -218,7 +239,7 @@ export default function QuizPlayEnhanced() {
     }
   };
 
-  const handleQuit = () => {
+  const handleQuit = async () => {
     if (!canQuit) {
       toast({
         title: "Cannot Quit Yet",
@@ -232,8 +253,17 @@ export default function QuizPlayEnhanced() {
     playQuitSound();
 
     const currentCorrect = answers.reduce((count, answer, index) => {
-      return count + (answer === quiz.questions[index]?.correctOption ? 1 : 0);
+      return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
     }, 0);
+    
+    // Record quiz attempt
+    await supabase.from('quiz_attempts').insert({
+      user_id: user!.id,
+      quiz_id: quizId,
+      score: currentCorrect,
+      total_questions: currentQuestionIndex + 1,
+      reward_earned: 0
+    });
     
     navigate(`/quiz/${quizId}/results`, { 
       state: { 

@@ -197,9 +197,11 @@ export default function AdminQuizCreate() {
     }
   };
 
-  const handleJsonPaste = () => {
+  const handleJsonPaste = async () => {
     try {
-      const parsed = JSON.parse(jsonInput);
+      // Remove comments from JSON
+      const cleanedJson = jsonInput.replace(/\/\/.*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const parsed = JSON.parse(cleanedJson);
       const quizzesArray = Array.isArray(parsed) ? parsed : [parsed];
       
       if (quizzesArray.length > 20) {
@@ -211,38 +213,104 @@ export default function AdminQuizCreate() {
         return;
       }
 
-      // Fill form with first quiz data
-      const firstQuiz = quizzesArray[0];
-      if (firstQuiz) {
-        setFormData({
-          title: firstQuiz.title || '',
-          description: firstQuiz.description || '',
-          category: firstQuiz.category || '',
-          entryFee: firstQuiz.entryFee || 500,
-          totalPrizeAmount: firstQuiz.prizePool || 5000,
-          numberOfQuestions: firstQuiz.questions?.length || 5,
-          penaltyAmount: firstQuiz.penaltyAmount || 50
-        });
-
-        if (firstQuiz.questions) {
-          setQuestions(firstQuiz.questions.map((q: any) => ({
-            text: q.text || '',
-            options: q.options || ['', '', '', ''],
-            correctOption: q.correctOption || 0,
-            timeLimit: q.timeLimit || 30
-          })));
+      // Validate structure
+      for (const quiz of quizzesArray) {
+        if (!quiz.quiz_title || !quiz.questions || !Array.isArray(quiz.questions)) {
+          toast({
+            title: "Invalid Format",
+            description: "Each quiz must have 'quiz_title' and 'questions' array",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        for (const q of quiz.questions) {
+          if (!q.question || !q.options || !q.answer) {
+            toast({
+              title: "Invalid Question Format",
+              description: "Each question must have 'question', 'options' (A-D), and 'answer'",
+              variant: "destructive"
+            });
+            return;
+          }
         }
       }
 
+      // Convert and save all quizzes
+      setIsSaving(true);
+      let successCount = 0;
+      
+      for (const quizData of quizzesArray) {
+        const startTime = new Date(Date.now() + 60 * 60 * 1000);
+        const endTime = new Date(startTime.getTime() + 15 * 60 * 1000);
+        
+        // Convert JSON format to internal format
+        const convertedQuestions = quizData.questions.map((q: any, idx: number) => {
+          const options = [q.options.A, q.options.B, q.options.C, q.options.D];
+          const correctOption = ['A', 'B', 'C', 'D'].indexOf(q.answer);
+          
+          return {
+            id: `q${idx + 1}`,
+            text: q.question,
+            options: options,
+            correctOption: correctOption,
+            timeLimit: 30
+          };
+        });
+
+        // Generate rewards
+        const numQuestions = convertedQuestions.length;
+        const baseReward = Math.floor(5000 / numQuestions / 2);
+        const rewardProgression = [];
+        
+        for (let i = 1; i <= numQuestions; i++) {
+          const multiplier = 1 + (i - 1) * 0.3;
+          rewardProgression.push({
+            questionNumber: i,
+            correctReward: Math.floor(baseReward * multiplier)
+          });
+        }
+
+        const quizDbData = {
+          title: quizData.quiz_title,
+          description: `Quiz with ${numQuestions} questions`,
+          entry_fee: 500,
+          prize_pool: 5000,
+          start_time: startTime.toISOString(),
+          end_time: endTime.toISOString(),
+          duration: 15,
+          status: 'upcoming',
+          is_available: true,
+          questions: convertedQuestions as any,
+          reward_progression: rewardProgression as any,
+          penalty_amount: 50
+        };
+
+        const { error } = await supabase
+          .from('quizzes')
+          .insert([quizDbData]);
+
+        if (error) {
+          console.error('Error saving quiz:', error);
+        } else {
+          successCount++;
+        }
+      }
+
+      setIsSaving(false);
       toast({
-        title: "JSON Loaded",
-        description: `Loaded ${quizzesArray.length} quiz(zes) from JSON`,
+        title: "Quizzes Created",
+        description: `Successfully created ${successCount} out of ${quizzesArray.length} quizzes`,
       });
+      
       setJsonInput('');
+      navigate('/admin/quizzes');
     } catch (error) {
+      setIsSaving(false);
+      console.error('JSON parse error:', error);
       toast({
         title: "Invalid JSON",
-        description: "Please paste valid quiz JSON format",
+        description: "Please paste valid quiz JSON format. Make sure to follow the exact structure.",
         variant: "destructive"
       });
     }
@@ -367,7 +435,7 @@ export default function AdminQuizCreate() {
         {/* JSON Paste Feature */}
         <Card>
           <CardHeader>
-            <CardTitle>Quick Fill from JSON</CardTitle>
+            <CardTitle>Bulk Import from JSON</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
@@ -376,13 +444,16 @@ export default function AdminQuizCreate() {
                 id="jsonInput"
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                placeholder='Paste your quiz JSON here...'
-                className="min-h-[100px] font-mono text-sm"
+                placeholder={`[\n  {\n    "quiz_title": "Extreme Knowledge Challenge 1",\n    "questions": [\n      {\n        "question": "Question text here...",\n        "options": {\n          "A": "Option 1",\n          "B": "Option 2",\n          "C": "Option 3",\n          "D": "Option 4"\n        },\n        "answer": "B"\n      }\n    ]\n  }\n]`}
+                className="min-h-[200px] font-mono text-sm"
               />
             </div>
-            <Button onClick={handleJsonPaste} variant="secondary" className="w-full">
-              Load from JSON
+            <Button onClick={handleJsonPaste} variant="secondary" className="w-full" disabled={isSaving}>
+              {isSaving ? 'Creating Quizzes...' : 'Create All Quizzes from JSON'}
             </Button>
+            <p className="text-xs text-muted-foreground">
+              This will create all quizzes directly in the database. Comments (// ...) will be ignored.
+            </p>
           </CardContent>
         </Card>
 
