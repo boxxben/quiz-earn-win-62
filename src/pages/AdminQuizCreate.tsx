@@ -51,6 +51,15 @@ export default function AdminQuizCreate() {
   const [isSaving, setIsSaving] = useState(false);
   const [jsonInput, setJsonInput] = useState('');
   const [isLoading, setIsLoading] = useState(isEditMode);
+  
+  // Common settings for bulk JSON import
+  const [bulkSettings, setBulkSettings] = useState({
+    entryFee: 500,
+    prizePool: 5000,
+    duration: 15,
+    penaltyAmount: 50,
+    startTimeOffset: 60 // minutes from now
+  });
 
   // Load quiz data when in edit mode
   React.useEffect(() => {
@@ -241,8 +250,8 @@ export default function AdminQuizCreate() {
       let successCount = 0;
       
       for (const quizData of quizzesArray) {
-        const startTime = new Date(Date.now() + 60 * 60 * 1000);
-        const endTime = new Date(startTime.getTime() + 15 * 60 * 1000);
+        const startTime = new Date(Date.now() + bulkSettings.startTimeOffset * 60 * 1000);
+        const endTime = new Date(startTime.getTime() + bulkSettings.duration * 60 * 1000);
         
         // Convert JSON format to internal format
         const convertedQuestions = quizData.questions.map((q: any, idx: number) => {
@@ -258,9 +267,9 @@ export default function AdminQuizCreate() {
           };
         });
 
-        // Generate rewards
+        // Generate rewards using bulk settings
         const numQuestions = convertedQuestions.length;
-        const baseReward = Math.floor(5000 / numQuestions / 2);
+        const baseReward = Math.floor(bulkSettings.prizePool / numQuestions / 2);
         const rewardProgression = [];
         
         for (let i = 1; i <= numQuestions; i++) {
@@ -274,16 +283,16 @@ export default function AdminQuizCreate() {
         const quizDbData = {
           title: quizData.quiz_title,
           description: `Quiz with ${numQuestions} questions`,
-          entry_fee: 500,
-          prize_pool: 5000,
+          entry_fee: bulkSettings.entryFee,
+          prize_pool: bulkSettings.prizePool,
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
-          duration: 15,
+          duration: bulkSettings.duration,
           status: 'upcoming',
           is_available: true,
           questions: convertedQuestions as any,
           reward_progression: rewardProgression as any,
-          penalty_amount: 50
+          penalty_amount: bulkSettings.penaltyAmount
         };
 
         const { error } = await supabase
@@ -438,6 +447,66 @@ export default function AdminQuizCreate() {
             <CardTitle>Bulk Import from JSON</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Common Settings for All Quizzes */}
+            <div className="border border-border rounded-lg p-4 bg-muted/30 space-y-4">
+              <h3 className="font-semibold text-sm">Common Settings (Applied to All Quizzes)</h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="bulkEntryFee">Entry Fee (₦)</Label>
+                  <Input
+                    id="bulkEntryFee"
+                    type="number"
+                    value={bulkSettings.entryFee}
+                    onChange={(e) => setBulkSettings(prev => ({ ...prev, entryFee: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="bulkPrizePool">Prize Pool (₦)</Label>
+                  <Input
+                    id="bulkPrizePool"
+                    type="number"
+                    value={bulkSettings.prizePool}
+                    onChange={(e) => setBulkSettings(prev => ({ ...prev, prizePool: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="bulkDuration">Duration (minutes)</Label>
+                  <Input
+                    id="bulkDuration"
+                    type="number"
+                    value={bulkSettings.duration}
+                    onChange={(e) => setBulkSettings(prev => ({ ...prev, duration: parseInt(e.target.value) || 15 }))}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="bulkPenalty">Penalty Amount (₦)</Label>
+                  <Input
+                    id="bulkPenalty"
+                    type="number"
+                    value={bulkSettings.penaltyAmount}
+                    onChange={(e) => setBulkSettings(prev => ({ ...prev, penaltyAmount: parseInt(e.target.value) || 0 }))}
+                  />
+                </div>
+                
+                <div className="col-span-2">
+                  <Label htmlFor="bulkStartOffset">Start Time (minutes from now)</Label>
+                  <Input
+                    id="bulkStartOffset"
+                    type="number"
+                    value={bulkSettings.startTimeOffset}
+                    onChange={(e) => setBulkSettings(prev => ({ ...prev, startTimeOffset: parseInt(e.target.value) || 60 }))}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Quizzes will start {bulkSettings.startTimeOffset} minutes from now
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="jsonInput">Paste Quiz JSON (up to 20 quizzes)</Label>
               <Textarea
