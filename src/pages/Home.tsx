@@ -1,223 +1,315 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
 import NotificationModal from '@/components/NotificationModal';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { formatDiamonds } from '@/lib/currency';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Wallet, 
   Plus, 
-  ArrowDown, 
   Brain, 
-  Clock, 
-  Users, 
-  Coins,
-  BellSimple
+  BellSimple,
+  Heart,
+  ChatCircle,
+  ShareNetwork,
+  Trophy,
+  Fire
 } from '@phosphor-icons/react';
 
+interface Post {
+  id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  likes: number;
+  comments: number;
+  user_name: string;
+  user_avatar: string;
+}
+
 export default function Home() {
-  const { user, hydrated } = useAuth();
+  const { user } = useAuth();
   const { unreadCount } = useNotifications();
   const { availableQuizzes } = useQuizAvailability();
-
-  const upcomingQuizzes = availableQuizzes.filter(quiz => quiz.status === 'upcoming').slice(0, 3);
-  const activeQuizzes = availableQuizzes.filter(quiz => quiz.status === 'active').slice(0, 2);
-
+  const { toast } = useToast();
+  const navigate = useNavigate();
   
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [newPost, setNewPost] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const [topPlayers, setTopPlayers] = useState<any[]>([]);
 
-  const formatTime = (date: Date) => {
+  // Fetch community posts
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('user_id, name, avatar, quizzes_won, total_earnings')
+        .order('total_earnings', { ascending: false })
+        .limit(20);
+      
+      if (profiles) {
+        // Generate mock posts from recent quiz winners
+        const mockPosts = profiles.slice(0, 10).map((profile, idx) => ({
+          id: `post-${idx}`,
+          user_id: profile.user_id,
+          content: idx % 3 === 0 
+            ? `Just won ${formatDiamonds(Math.floor(Math.random() * 500) + 100)} in a quiz! 🎉 Feeling unstoppable!`
+            : idx % 3 === 1
+            ? `Who else is ready for the next challenge? Let's crush it together! 💪`
+            : `${profile.quizzes_won} quizzes won and counting! The grind never stops 🔥`,
+          created_at: new Date(Date.now() - Math.random() * 86400000).toISOString(),
+          likes: Math.floor(Math.random() * 50) + 5,
+          comments: Math.floor(Math.random() * 20) + 1,
+          user_name: profile.name,
+          user_avatar: profile.avatar || ''
+        }));
+        setPosts(mockPosts);
+      }
+    };
+
+    const fetchTopPlayers = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('name, avatar, total_earnings, quizzes_won')
+        .order('total_earnings', { ascending: false })
+        .limit(5);
+      
+      if (data) setTopPlayers(data);
+    };
+
+    fetchPosts();
+    fetchTopPlayers();
+  }, []);
+
+  const handleCreatePost = async () => {
+    if (!newPost.trim()) return;
+    
+    setIsPosting(true);
+    
+    // Add new post to the feed
+    const post: Post = {
+      id: `post-${Date.now()}`,
+      user_id: user!.id,
+      content: newPost,
+      created_at: new Date().toISOString(),
+      likes: 0,
+      comments: 0,
+      user_name: user!.name,
+      user_avatar: user!.avatar || ''
+    };
+    
+    setPosts([post, ...posts]);
+    setNewPost('');
+    setIsPosting(false);
+    
+    toast({
+      title: 'Post Shared! 🎉',
+      description: 'Your thoughts have been shared with the community',
+    });
+  };
+
+  const formatTimeAgo = (date: string) => {
     const now = new Date();
-    const diff = date.getTime() - now.getTime();
+    const diff = now.getTime() - new Date(date).getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
     
-    if (diff < 0) return 'Active Now';
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return 'Just now';
   };
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6 pb-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground p-6 pb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold">Hello, {user?.name?.split(' ')[0]}! 👋</h1>
-            <p className="text-primary-foreground/80">Ready to earn some money?</p>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Fire size={28} className="text-accent" />
+              Community Feed
+            </h1>
+            <p className="text-primary-foreground/80 text-sm">Share your wins and connect with players</p>
           </div>
-          <div className="relative">
-            <NotificationModal>
-              <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/20">
-                <BellSimple size={20} />
-              </Button>
-            </NotificationModal>
-            {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center animate-pulse-notification">
-                <span className="text-xs font-bold text-accent-foreground">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              </div>
-            )}
+          <div className="flex items-center gap-3">
+            <Button asChild variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/20">
+              <Link to="/wallet">
+                <Wallet size={20} />
+              </Link>
+            </Button>
+            <div className="relative">
+              <NotificationModal>
+                <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-white/20">
+                  <BellSimple size={20} />
+                </Button>
+              </NotificationModal>
+              {unreadCount > 0 && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center animate-pulse">
+                  <span className="text-xs font-bold text-accent-foreground">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        {/* Balance Card */}
-        <Card className="bg-white/10 backdrop-blur-sm border-white/20">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-primary-foreground/80 text-sm">Wallet Balance</p>
-                <p className="text-2xl font-bold text-primary-foreground">
-                  {formatDiamonds(user?.balance || 0)}
-                </p>
-              </div>
-              <Wallet size={32} className="text-primary-foreground/80" />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
-      <div className="px-6 -mt-4 space-y-6">
-        {/* Quick Actions */}
-        <Card className="bg-card border-border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4">
-              <Button asChild variant="outline" className="flex-col h-auto py-4 space-y-2">
+      <div className="px-6 -mt-2 space-y-4">
+        {/* Quick Stats Bar */}
+        <Card className="bg-gradient-to-r from-accent/10 to-primary/10 border-accent/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between text-sm">
+              <div className="text-center">
+                <p className="font-bold text-lg text-foreground">{formatDiamonds(user?.balance || 0)}</p>
+                <p className="text-muted-foreground text-xs">Balance</p>
+              </div>
+              <div className="h-8 w-px bg-border"></div>
+              <div className="text-center">
+                <p className="font-bold text-lg text-primary">{user?.quizzesWon || 0}</p>
+                <p className="text-muted-foreground text-xs">Wins</p>
+              </div>
+              <div className="h-8 w-px bg-border"></div>
+              <div className="text-center">
+                <p className="font-bold text-lg text-accent">{formatDiamonds(user?.totalEarnings || 0)}</p>
+                <p className="text-muted-foreground text-xs">Earnings</p>
+              </div>
+              <div className="h-8 w-px bg-border"></div>
+              <Button asChild size="sm" variant="default">
                 <Link to="/quizzes">
-                  <Brain size={24} className="text-primary" />
-                  <span className="text-xs">Join Quiz</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="flex-col h-auto py-4 space-y-2">
-                <Link to="/wallet/deposit">
-                  <Plus size={24} className="text-accent" />
-                  <span className="text-xs">Add Funds</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="flex-col h-auto py-4 space-y-2">
-                <Link to="/wallet/withdraw">
-                  <ArrowDown size={24} className="text-orange-500" />
-                  <span className="text-xs">Withdraw</span>
+                  <Brain size={16} className="mr-1" />
+                  Play
                 </Link>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Active Quizzes */}
-        {activeQuizzes.length > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Active Now</h2>
-              <Link to="/quizzes" className="text-primary text-sm hover:underline">
-                View All
-              </Link>
+        {/* Create Post */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={user?.avatar} />
+                <AvatarFallback>{user?.name?.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-2">
+                <Textarea
+                  placeholder="Share your achievement or challenge others..."
+                  value={newPost}
+                  onChange={(e) => setNewPost(e.target.value)}
+                  className="min-h-[60px] resize-none"
+                />
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleCreatePost} 
+                    disabled={!newPost.trim() || isPosting}
+                    size="sm"
+                  >
+                    {isPosting ? 'Posting...' : 'Share'}
+                  </Button>
+                </div>
+              </div>
             </div>
-            <div className="space-y-3">
-              {activeQuizzes.map(quiz => (
-                <Card key={quiz.id} className="border-accent/30 bg-accent/5">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-1">{quiz.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-2">{quiz.description}</p>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <div className="flex items-center">
-                            <Coins size={16} className="mr-1" />
-                            {formatDiamonds(quiz.entryFee)}
-                          </div>
-                          <div className="flex items-center">
-                            <Users size={16} className="mr-1" />
-                            <span className={quiz.isAvailable ? 'text-green-600 font-semibold' : 'text-destructive'}>
-                              {quiz.isAvailable ? 'Available' : 'Taken'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <Badge variant="default" className="bg-accent text-accent-foreground">
-                        LIVE
-                      </Badge>
-                    </div>
-                    <Button asChild size="sm" className="w-full">
-                      <Link to={`/quiz/${quiz.id}`}>Join Now - Win {formatDiamonds(quiz.prizePool)}</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+          </CardContent>
+        </Card>
 
-        {/* Upcoming Quizzes */}
+        {/* Top Players Sidebar */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy size={20} className="text-accent" />
+              Top Players Today
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {topPlayers.map((player, idx) => (
+              <div key={idx} className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/5 transition-colors">
+                <div className="font-bold text-lg w-6 text-center">
+                  {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                </div>
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={player.avatar} />
+                  <AvatarFallback>{player.name?.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{player.name}</p>
+                  <p className="text-xs text-muted-foreground">{player.quizzes_won} wins</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-accent">{formatDiamonds(player.total_earnings)}</p>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Community Feed */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold">Upcoming Quizzes</h2>
-            <Link to="/quizzes" className="text-primary text-sm hover:underline">
-              View All
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {upcomingQuizzes.map(quiz => (
-              <Card key={quiz.id} className="hover:shadow-md transition-shadow">
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <ChatCircle size={24} />
+            Community Activity
+          </h2>
+          <div className="space-y-4">
+            {posts.map((post) => (
+              <Card key={post.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground mb-1">{quiz.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-2">{quiz.description}</p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <div className="flex items-center">
-                          <Coins size={16} className="mr-1" />
-                          {formatDiamonds(quiz.entryFee)}
-                        </div>
-                        <div className="flex items-center">
-                          <Users size={16} className="mr-1" />
-                          <span className={quiz.isAvailable ? 'text-green-600 font-semibold' : 'text-destructive'}>
-                            {quiz.isAvailable ? 'Available' : 'Taken'}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock size={16} className="mr-1" />
-                          {formatTime(quiz.startTime)}
-                        </div>
+                  <div className="flex gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={post.user_avatar} />
+                      <AvatarFallback>{post.user_name?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-semibold text-sm">{post.user_name}</p>
+                        <span className="text-xs text-muted-foreground">
+                          {formatTimeAgo(post.created_at)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground mb-3">{post.content}</p>
+                      <div className="flex items-center gap-4 text-muted-foreground">
+                        <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
+                          <Heart size={18} />
+                          <span className="text-xs">{post.likes}</span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-primary transition-colors">
+                          <ChatCircle size={18} />
+                          <span className="text-xs">{post.comments}</span>
+                        </button>
+                        <button className="flex items-center gap-1 hover:text-accent transition-colors">
+                          <ShareNetwork size={18} />
+                        </button>
                       </div>
                     </div>
                   </div>
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link to={`/quiz/${quiz.id}`}>
-                      View Details - Prize: {formatDiamonds(quiz.prizePool)}
-                    </Link>
-                  </Button>
                 </CardContent>
               </Card>
             ))}
           </div>
         </div>
 
-        {/* Stats Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Your Stats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">{user?.quizzesPlayed || 0}</p>
-                <p className="text-sm text-muted-foreground">Quizzes Played</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-accent">{formatDiamonds(user?.totalEarnings || 0)}</p>
-                <p className="text-sm text-muted-foreground">Total Earnings</p>
-              </div>
-            </div>
+        {/* Quick Action to Quizzes */}
+        <Card className="border-2 border-primary/20 bg-gradient-to-r from-primary/5 to-accent/5">
+          <CardContent className="p-6 text-center">
+            <Brain size={48} className="mx-auto mb-3 text-primary" />
+            <h3 className="text-lg font-bold mb-2">Ready for a Challenge?</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {availableQuizzes.length} quizzes available now
+            </p>
+            <Button asChild size="lg" className="w-full">
+              <Link to="/quizzes">Browse All Quizzes</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>

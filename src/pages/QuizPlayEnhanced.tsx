@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { Clock, ArrowRight, TrendUp, Warning } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTransactions } from '@/contexts/TransactionContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds } from '@/lib/currency';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ export default function QuizPlayEnhanced() {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { addTransaction } = useTransactions();
   const { toast } = useToast();
   const { availableQuizzes } = useQuizAvailability();
   
@@ -122,7 +124,7 @@ export default function QuizPlayEnhanced() {
     }
   }, [currentQuestionIndex]);
 
-  const handleAnswerSelect = (optionIndex: number) => {
+  const handleAnswerSelect = async (optionIndex: number) => {
     if (isAnswered) return;
     
     setSelectedAnswer(optionIndex);
@@ -145,6 +147,31 @@ export default function QuizPlayEnhanced() {
       
       if (newBalance <= MAX_WALLET_BALANCE) {
         setAccumulatedReward(prev => prev + reward);
+        setPlayerBalance(newBalance);
+        
+        // Update balance in database immediately
+        await supabase
+          .from('profiles')
+          .update({ balance: newBalance })
+          .eq('user_id', user!.id);
+        
+        // Record credit transaction
+        await supabase.from('transactions').insert({
+          user_id: user!.id,
+          type: 'quiz_reward',
+          amount: reward,
+          status: 'completed',
+          description: `Correct answer reward - ${quiz.title}`
+        });
+        
+        // Update local transaction context
+        addTransaction({
+          type: 'quiz_reward',
+          amount: reward,
+          status: 'completed',
+          description: `Correct answer reward - ${quiz.title}`
+        });
+        
         toast({
           title: "Correct! ✅",
           description: `You earned ${formatDiamonds(reward)}!`,
@@ -159,7 +186,31 @@ export default function QuizPlayEnhanced() {
       }
     } else {
       setFeedbackAnimation('animate-shake bg-red-100');
-      setPlayerBalance(prev => prev - quiz.penaltyAmount);
+      const newBalance = playerBalance - quiz.penaltyAmount;
+      setPlayerBalance(newBalance);
+      
+      // Update balance in database immediately
+      await supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('user_id', user!.id);
+      
+      // Record penalty transaction
+      await supabase.from('transactions').insert({
+        user_id: user!.id,
+        type: 'quiz_fee',
+        amount: quiz.penaltyAmount,
+        status: 'completed',
+        description: `Wrong answer penalty - ${quiz.title}`
+      });
+      
+      // Update local transaction context
+      addTransaction({
+        type: 'quiz_fee',
+        amount: -quiz.penaltyAmount,
+        status: 'completed',
+        description: `Wrong answer penalty - ${quiz.title}`
+      });
       
       // Play incorrect sound
       playIncorrectSound();

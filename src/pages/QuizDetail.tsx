@@ -87,7 +87,7 @@ export default function QuizDetail() {
     return true;
   };
 
-  const handleJoinQuiz = () => {
+  const handleJoinQuiz = async () => {
     if (!canJoin()) return;
     
     if (user!.balance < quiz.entryFee) {
@@ -99,10 +99,34 @@ export default function QuizDetail() {
       return;
     }
 
-    // Deduct entry fee
-    updateUser({ balance: user!.balance - quiz.entryFee });
+    const newBalance = user!.balance - quiz.entryFee;
 
-    // Record transaction for entry fee
+    // Update balance in database immediately
+    const { error: balanceError } = await supabase
+      .from('profiles')
+      .update({ balance: newBalance })
+      .eq('user_id', user!.id);
+
+    if (balanceError) {
+      toast({
+        title: 'Error',
+        description: 'Failed to process entry fee. Please try again.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Record transaction in database
+    await supabase.from('transactions').insert({
+      user_id: user!.id,
+      type: 'quiz_fee',
+      amount: quiz.entryFee,
+      status: 'completed',
+      description: `Quiz entry fee - ${quiz.title}`
+    });
+
+    // Update local state
+    updateUser({ balance: newBalance });
     addTransaction({
       type: 'quiz_fee',
       amount: -quiz.entryFee,
