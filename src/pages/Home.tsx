@@ -50,29 +50,34 @@ export default function Home() {
   // Fetch community posts
   useEffect(() => {
     const fetchPosts = async () => {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, name, avatar, quizzes_won, total_earnings')
-        .order('total_earnings', { ascending: false })
+      const { data: postsData } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          user_id,
+          content,
+          likes,
+          created_at,
+          profiles:user_id (
+            name,
+            avatar
+          )
+        `)
+        .order('created_at', { ascending: false })
         .limit(20);
       
-      if (profiles) {
-        // Generate mock posts from recent quiz winners
-        const mockPosts = profiles.slice(0, 10).map((profile, idx) => ({
-          id: `post-${idx}`,
-          user_id: profile.user_id,
-          content: idx % 3 === 0 
-            ? `Just won ${formatDiamonds(Math.floor(Math.random() * 500) + 100)} in a quiz! 🎉 Feeling unstoppable!`
-            : idx % 3 === 1
-            ? `Who else is ready for the next challenge? Let's crush it together! 💪`
-            : `${profile.quizzes_won} quizzes won and counting! The grind never stops 🔥`,
-          created_at: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-          likes: Math.floor(Math.random() * 50) + 5,
-          comments: Math.floor(Math.random() * 20) + 1,
-          user_name: profile.name,
-          user_avatar: profile.avatar || ''
+      if (postsData) {
+        const formattedPosts = postsData.map((post: any) => ({
+          id: post.id,
+          user_id: post.user_id,
+          content: post.content,
+          created_at: post.created_at,
+          likes: post.likes,
+          comments: 0, // Will add comments feature later
+          user_name: post.profiles?.name || 'Unknown User',
+          user_avatar: post.profiles?.avatar || ''
         }));
-        setPosts(mockPosts);
+        setPosts(formattedPosts);
       }
     };
 
@@ -95,26 +100,47 @@ export default function Home() {
     
     setIsPosting(true);
     
-    // Add new post to the feed
-    const post: Post = {
-      id: `post-${Date.now()}`,
-      user_id: user!.id,
-      content: newPost,
-      created_at: new Date().toISOString(),
-      likes: 0,
-      comments: 0,
-      user_name: user!.name,
-      user_avatar: user!.avatar || ''
-    };
-    
-    setPosts([post, ...posts]);
-    setNewPost('');
-    setIsPosting(false);
-    
-    toast({
-      title: 'Post Shared! 🎉',
-      description: 'Your thoughts have been shared with the community',
-    });
+    try {
+      // Insert post into database
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user!.id,
+          content: newPost
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Add new post to the feed
+      const post: Post = {
+        id: data.id,
+        user_id: user!.id,
+        content: newPost,
+        created_at: data.created_at,
+        likes: 0,
+        comments: 0,
+        user_name: user!.name,
+        user_avatar: user!.avatar || ''
+      };
+      
+      setPosts([post, ...posts]);
+      setNewPost('');
+      
+      toast({
+        title: 'Post Shared! 🎉',
+        description: 'Your thoughts have been shared with the community',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to share post. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   const formatTimeAgo = (date: string) => {

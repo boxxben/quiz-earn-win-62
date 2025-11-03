@@ -34,7 +34,23 @@ export default function QuizDetail() {
   React.useEffect(() => {
     const fetchQuizAndAttempt = async () => {
       const { data: quizData } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
-      setQuiz(quizData);
+      
+      if (quizData) {
+        // Map database fields to component format
+        setQuiz({
+          id: quizData.id,
+          title: quizData.title,
+          description: quizData.description,
+          entryFee: quizData.entry_fee,
+          prizePool: quizData.prize_pool,
+          startTime: new Date(quizData.start_time),
+          endTime: new Date(quizData.end_time),
+          duration: quizData.duration,
+          status: quizData.status,
+          isAvailable: quizData.is_available,
+          penaltyAmount: quizData.penalty_amount
+        });
+      }
       
       if (user) {
         const { data: attempts } = await supabase
