@@ -33,11 +33,17 @@ export default function QuizPlayEnhanced() {
   const [feedbackAnimation, setFeedbackAnimation] = useState('');
   const [diamondOverlay, setDiamondOverlay] = useState({ show: false, amount: 0, type: '' });
   const [showWinAnimation, setShowWinAnimation] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Fetch quiz and randomize questions on mount
   useEffect(() => {
     const fetchQuiz = async () => {
-      const { data } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
+      setLoading(true);
+      const { data } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('id', quizId)
+        .maybeSingle();
       
       if (data) {
         const quizData = {
@@ -58,11 +64,14 @@ export default function QuizPlayEnhanced() {
         
         setQuiz(quizData);
         
-        if (quizData.questions) {
+        if (quizData.questions && quizData.questions.length > 0) {
           const shuffled = [...quizData.questions].sort(() => Math.random() - 0.5);
           setRandomizedQuestions(shuffled);
         }
+      } else {
+        setQuiz(null);
       }
+      setLoading(false);
     };
     
     fetchQuiz();
@@ -106,11 +115,23 @@ export default function QuizPlayEnhanced() {
   };
   const playQuitSound = () => playSound(196, 0.8, 'sawtooth');
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">Loading quiz...</div>
+      </div>
+    );
+  }
+
   if (!quiz || !quiz.questions || quiz.questions.length === 0 || randomizedQuestions.length === 0) {
-    if (!quiz) {
-      navigate('/quizzes');
-    }
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Quiz Not Available</h1>
+          <Button onClick={() => navigate('/quizzes')}>Back to Quizzes</Button>
+        </div>
+      </div>
+    );
   }
 
   const currentQuestion = randomizedQuestions[currentQuestionIndex];
