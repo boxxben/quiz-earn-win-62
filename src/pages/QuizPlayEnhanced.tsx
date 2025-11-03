@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { Clock, ArrowRight, TrendUp, Warning } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/contexts/TransactionContext';
@@ -19,9 +18,8 @@ export default function QuizPlayEnhanced() {
   const { user } = useAuth();
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
-  const { availableQuizzes } = useQuizAvailability();
   
-  const quiz = availableQuizzes.find(q => q.id === quizId);
+  const [quiz, setQuiz] = useState<any>(null);
   const [randomizedQuestions, setRandomizedQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
@@ -36,13 +34,39 @@ export default function QuizPlayEnhanced() {
   const [diamondOverlay, setDiamondOverlay] = useState({ show: false, amount: 0, type: '' });
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   
-  // Randomize questions on mount
+  // Fetch quiz and randomize questions on mount
   useEffect(() => {
-    if (quiz?.questions) {
-      const shuffled = [...quiz.questions].sort(() => Math.random() - 0.5);
-      setRandomizedQuestions(shuffled);
-    }
-  }, [quiz]);
+    const fetchQuiz = async () => {
+      const { data } = await supabase.from('quizzes').select('*').eq('id', quizId).single();
+      
+      if (data) {
+        const quizData = {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          entryFee: data.entry_fee,
+          prizePool: data.prize_pool,
+          startTime: new Date(data.start_time),
+          endTime: new Date(data.end_time),
+          duration: data.duration,
+          status: data.status,
+          isAvailable: data.is_available,
+          penaltyAmount: data.penalty_amount,
+          questions: data.questions as any[],
+          rewardProgression: data.reward_progression as any[]
+        };
+        
+        setQuiz(quizData);
+        
+        if (quizData.questions) {
+          const shuffled = [...quizData.questions].sort(() => Math.random() - 0.5);
+          setRandomizedQuestions(shuffled);
+        }
+      }
+    };
+    
+    fetchQuiz();
+  }, [quizId]);
   
   // Sound functions
   const playSound = (frequency: number, duration: number, type: 'sine' | 'square' | 'sawtooth' = 'sine') => {
