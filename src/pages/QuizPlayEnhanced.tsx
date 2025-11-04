@@ -10,6 +10,7 @@ import { useTransactions } from '@/contexts/TransactionContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatDiamonds } from '@/lib/currency';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { MAX_WALLET_BALANCE } from '@/lib/constants';
 
 export default function QuizPlayEnhanced() {
@@ -18,6 +19,7 @@ export default function QuizPlayEnhanced() {
   const { user } = useAuth();
   const { addTransaction } = useTransactions();
   const { toast } = useToast();
+  const { availableQuizzes } = useQuizAvailability();
   
   const [quiz, setQuiz] = useState<any>(null);
   const [randomizedQuestions, setRandomizedQuestions] = useState<any[]>([]);
@@ -39,29 +41,55 @@ export default function QuizPlayEnhanced() {
   useEffect(() => {
     const fetchQuiz = async () => {
       setLoading(true);
+
+      const normalizeArray = (raw: any): any[] => {
+        if (Array.isArray(raw)) return raw;
+        if (typeof raw === 'string') {
+          try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+            if (Array.isArray((parsed as any)?.questions)) return (parsed as any).questions;
+          } catch {}
+          return [];
+        }
+        if (Array.isArray((raw as any)?.questions)) return (raw as any).questions;
+        return [];
+      };
+
+      const normalizeQuestions = (arr: any[]): any[] => {
+        return (arr || []).map((q: any, idx: number) => {
+          const opts = Array.isArray(q.options)
+            ? q.options
+            : q.options && typeof q.options === 'object'
+              ? ['A','B','C','D'].map(k => q.options[k]).filter(Boolean)
+              : [];
+
+          const answerIdx = typeof q.correctOption === 'number'
+            ? q.correctOption
+            : typeof q.answer === 'string'
+              ? ['A','B','C','D'].indexOf(q.answer)
+              : typeof q.correctOption === 'string'
+                ? parseInt(q.correctOption, 10)
+                : 0;
+
+          return {
+            id: q.id || `q${idx+1}`,
+            text: q.text || q.question || '',
+            options: opts,
+            correctOption: Math.max(0, Math.min(3, answerIdx)),
+            timeLimit: q.timeLimit || 30,
+          };
+        }).filter(q => q.text && q.options.length === 4);
+      };
+
       const { data } = await supabase
         .from('quizzes')
         .select('*')
         .eq('id', quizId)
         .maybeSingle();
-      
-      if (data) {
-        // Normalize questions/rewards in case they were stored as strings or nested objects
-        const normalizeArray = (raw: any): any[] => {
-          if (Array.isArray(raw)) return raw;
-          if (typeof raw === 'string') {
-            try {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) return parsed;
-              if (Array.isArray((parsed as any)?.questions)) return (parsed as any).questions;
-            } catch {}
-            return [];
-          }
-          if (Array.isArray((raw as any)?.questions)) return (raw as any).questions;
-          return [];
-        };
 
-        const normalizedQuestions = normalizeArray(data.questions);
+      if (data) {
+        const normalizedQuestions = normalizeQuestions(normalizeArray(data.questions));
         const normalizedRewards = normalizeArray(data.reward_progression);
 
         const quizData = {
@@ -79,21 +107,32 @@ export default function QuizPlayEnhanced() {
           questions: normalizedQuestions as any[],
           rewardProgression: normalizedRewards as any[]
         };
-        
+
         setQuiz(quizData);
-        
-        if (quizData.questions && quizData.questions.length > 0) {
+        if (quizData.questions.length > 0) {
           const shuffled = [...quizData.questions].sort(() => Math.random() - 0.5);
           setRandomizedQuestions(shuffled);
         }
       } else {
-        setQuiz(null);
+        // Fallback to context cache
+        const fallback = availableQuizzes.find(q => q.id === quizId);
+        if (fallback) {
+          const normalizedQuestions = normalizeQuestions(normalizeArray(fallback.questions));
+          const quizData = { ...fallback, questions: normalizedQuestions } as any;
+          setQuiz(quizData);
+          if (quizData.questions.length > 0) {
+            const shuffled = [...quizData.questions].sort(() => Math.random() - 0.5);
+            setRandomizedQuestions(shuffled);
+          }
+        } else {
+          setQuiz(null);
+        }
       }
       setLoading(false);
     };
-    
+
     fetchQuiz();
-  }, [quizId]);
+  }, [quizId, availableQuizzes]);
   
   // Sound functions
   const playSound = (frequency: number, duration: number, type: 'sine' | 'square' | 'sawtooth' = 'sine') => {
