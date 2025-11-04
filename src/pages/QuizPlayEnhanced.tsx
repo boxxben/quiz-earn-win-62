@@ -58,8 +58,8 @@ export default function QuizPlayEnhanced() {
           status: data.status,
           isAvailable: data.is_available,
           penaltyAmount: data.penalty_amount,
-          questions: data.questions as any[],
-          rewardProgression: data.reward_progression as any[]
+          questions: Array.isArray(data.questions) ? (data.questions as any[]) : [],
+          rewardProgression: Array.isArray(data.reward_progression) ? (data.reward_progression as any[]) : []
         };
         
         setQuiz(quizData);
