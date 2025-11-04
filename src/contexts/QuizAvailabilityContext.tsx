@@ -22,7 +22,6 @@ export function QuizAvailabilityProvider({ children }: { children: React.ReactNo
     const { data, error } = await supabase
       .from('quizzes')
       .select('*')
-      .eq('is_available', true)
       .order('created_at', { ascending: false });
 
     if (data && !error) {

@@ -46,6 +46,24 @@ export default function QuizPlayEnhanced() {
         .maybeSingle();
       
       if (data) {
+        // Normalize questions/rewards in case they were stored as strings or nested objects
+        const normalizeArray = (raw: any): any[] => {
+          if (Array.isArray(raw)) return raw;
+          if (typeof raw === 'string') {
+            try {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) return parsed;
+              if (Array.isArray((parsed as any)?.questions)) return (parsed as any).questions;
+            } catch {}
+            return [];
+          }
+          if (Array.isArray((raw as any)?.questions)) return (raw as any).questions;
+          return [];
+        };
+
+        const normalizedQuestions = normalizeArray(data.questions);
+        const normalizedRewards = normalizeArray(data.reward_progression);
+
         const quizData = {
           id: data.id,
           title: data.title,
@@ -58,8 +76,8 @@ export default function QuizPlayEnhanced() {
           status: data.status,
           isAvailable: data.is_available,
           penaltyAmount: data.penalty_amount,
-          questions: Array.isArray(data.questions) ? (data.questions as any[]) : [],
-          rewardProgression: Array.isArray(data.reward_progression) ? (data.reward_progression as any[]) : []
+          questions: normalizedQuestions as any[],
+          rewardProgression: normalizedRewards as any[]
         };
         
         setQuiz(quizData);
