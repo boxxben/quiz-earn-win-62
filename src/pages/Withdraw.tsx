@@ -99,22 +99,6 @@ export default function Withdraw() {
     }
   };
 
-  const handleAccountNumberChange = (value: string) => {
-    // Mock account name lookup
-    if (value.length === 10) {
-      setFormData(prev => ({ 
-        ...prev, 
-        accountNumber: value,
-        accountName: 'John Doe' // Mock account name
-      }));
-    } else {
-      setFormData(prev => ({ 
-        ...prev, 
-        accountNumber: value,
-        accountName: ''
-      }));
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -191,18 +175,25 @@ export default function Withdraw() {
                   type="text"
                   placeholder="Enter your account number"
                   value={formData.accountNumber}
-                  onChange={(e) => handleAccountNumberChange(e.target.value)}
+                  onChange={(e) => setFormData(prev => ({ ...prev, accountNumber: e.target.value }))}
                   maxLength={10}
                   required
                 />
-                {formData.accountName && (
-                  <p className="text-sm text-accent mt-1">
-                    Account Name: {formData.accountName}
-                  </p>
-                )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading || !formData.amount || !formData.bankName || !formData.accountNumber}>
+              <div>
+                <Label htmlFor="accountName">Account Name</Label>
+                <Input
+                  id="accountName"
+                  type="text"
+                  placeholder="Enter account name"
+                  value={formData.accountName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, accountName: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full" disabled={isLoading || !formData.amount || !formData.bankName || !formData.accountNumber || !formData.accountName}>
                 {isLoading ? 'Processing Withdrawal...' : `Withdraw ${formData.amount ? formatCurrency(parseInt(formData.amount)) : '₦0'}`}
               </Button>
             </form>
