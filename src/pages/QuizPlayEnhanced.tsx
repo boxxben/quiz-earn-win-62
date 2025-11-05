@@ -244,6 +244,36 @@ export default function QuizPlayEnhanced() {
   };
   const playQuitSound = () => playSound(196, 0.8, 'sawtooth');
 
+  // Ensure hooks run before early returns to keep stable order
+  useEffect(() => {
+    playStartSound();
+  }, []);
+
+  useEffect(() => {
+    if (timeLeft > 0 && !isAnswered) {
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timer);
+    } else if (timeLeft === 0 && !isAnswered) {
+      handleNext();
+    }
+  }, [timeLeft, isAnswered]);
+
+  // Reset for new question and handle midway warning
+  useEffect(() => {
+    setSelectedAnswer(null);
+    setIsAnswered(false);
+    setTimeLeft(30);
+    setFeedbackAnimation('');
+
+    const total = randomizedQuestions.length;
+    const midway = Math.floor(total / 2);
+    const atMidway = currentQuestionIndex === midway && !hasShownWarning;
+    if (atMidway) {
+      setShowMidwayWarning(true);
+      setHasShownWarning(true);
+    }
+  }, [currentQuestionIndex, randomizedQuestions.length, hasShownWarning]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -271,32 +301,6 @@ export default function QuizPlayEnhanced() {
   const currentReward = (quiz.rewardProgression || []).find((r: any) => r.questionNumber === currentQuestionIndex + 1);
   const canQuit = currentQuestionIndex >= midwayPoint;
 
-  // Play start sound
-  useEffect(() => {
-    playStartSound();
-  }, []);
-  useEffect(() => {
-    if (timeLeft > 0 && !isAnswered) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !isAnswered) {
-      handleNext();
-    }
-  }, [timeLeft, isAnswered]);
-
-  // Reset for new question
-  useEffect(() => {
-    setSelectedAnswer(null);
-    setIsAnswered(false);
-    setTimeLeft(30);
-    setFeedbackAnimation('');
-    
-    // Show midway warning
-    if (isAtMidway) {
-      setShowMidwayWarning(true);
-      setHasShownWarning(true);
-    }
-  }, [currentQuestionIndex]);
 
   const handleAnswerSelect = async (optionIndex: number) => {
     if (isAnswered) return;
