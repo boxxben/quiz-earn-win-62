@@ -150,15 +150,10 @@ export default function QuizDetail() {
       description: `Quiz entry fee - ${quiz.title}`
     });
 
-    toast({
-      title: 'Quiz Joined!',
-      description: `${formatCurrency(quiz.entryFee)} has been deducted from your wallet. Good luck!`,
-    });
     
     // Navigate to quiz play
-    navigate(`/quiz/${quiz.id}/play`);
+    navigate(`/quiz/${quizId}/play`);
   };
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}

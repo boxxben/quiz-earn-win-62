@@ -196,7 +196,7 @@ export default function QuizPlayEnhanced() {
   const progress = ((currentQuestionIndex + 1) / totalQuestions) * 100;
   const midwayPoint = Math.floor(totalQuestions / 2);
   const isAtMidway = currentQuestionIndex === midwayPoint && !hasShownWarning;
-  const currentReward = quiz.rewardProgression.find(r => r.questionNumber === currentQuestionIndex + 1);
+  const currentReward = (quiz.rewardProgression || []).find((r: any) => r.questionNumber === currentQuestionIndex + 1);
   const canQuit = currentQuestionIndex >= midwayPoint;
 
   // Play start sound
