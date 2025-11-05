@@ -36,6 +36,7 @@ export default function QuizPlayEnhanced() {
   const [diamondOverlay, setDiamondOverlay] = useState({ show: false, amount: 0, type: '' });
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   const [loading, setLoading] = useState(true);
+  const timeUpProcessedRef = useRef(false);
   
   // Fetch quiz and randomize questions on mount
   useEffect(() => {
@@ -244,6 +245,74 @@ export default function QuizPlayEnhanced() {
   };
   const playQuitSound = () => playSound(196, 0.8, 'sawtooth');
 
+  // Finish quiz immediately with current progress
+  const finishQuizNow = async () => {
+    const correctCount = answers.reduce((count, answer, index) => {
+      return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
+    }, 0);
+
+    const finalCorrectCount = correctCount;
+    const totalAnswered = currentQuestionIndex + 1;
+    const finalReward = finalCorrectCount > midwayPoint ? accumulatedReward : 0;
+
+    await supabase.from('quiz_attempts').insert({
+      user_id: user!.id,
+      quiz_id: quizId,
+      score: finalCorrectCount,
+      total_questions: totalAnswered,
+      reward_earned: finalReward
+    });
+
+    navigate(`/quiz/${quizId}/results`, {
+      state: {
+        score: finalCorrectCount,
+        totalQuestions: totalAnswered,
+        answers: answers,
+        quizTitle: quiz.title,
+        finalReward,
+        balanceChange: finalReward - (quiz.entryFee + ((totalAnswered - finalCorrectCount) * quiz.penaltyAmount)),
+        isTimeUp: true
+      }
+    });
+  };
+
+  // Handle time up: deduct penalty and finish
+  const handleTimeUp = async () => {
+    try {
+      // Deduct penalty for unanswered question
+      const newBalance = playerBalance - quiz.penaltyAmount;
+      setPlayerBalance(newBalance);
+
+      await supabase
+        .from('profiles')
+        .update({ balance: newBalance })
+        .eq('user_id', user!.id);
+
+      await supabase.from('transactions').insert({
+        user_id: user!.id,
+        type: 'quiz_fee',
+        amount: -quiz.penaltyAmount,
+        status: 'completed',
+        description: `Time up penalty - ${quiz.title}`
+      });
+
+      addTransaction({
+        type: 'quiz_fee',
+        amount: -quiz.penaltyAmount,
+        status: 'completed',
+        description: `Time up penalty - ${quiz.title}`
+      });
+
+      toast({
+        title: "Time's up ⏰",
+        description: `${formatDiamonds(quiz.penaltyAmount)} deducted from your balance`,
+        variant: 'destructive'
+      });
+    } finally {
+      await finishQuizNow();
+    }
+  };
+
   // Ensure hooks run before early returns to keep stable order
   useEffect(() => {
     playStartSound();
@@ -253,8 +322,9 @@ export default function QuizPlayEnhanced() {
     if (timeLeft > 0 && !isAnswered) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !isAnswered) {
-      handleNext();
+    } else if (timeLeft === 0 && !isAnswered && !timeUpProcessedRef.current) {
+      timeUpProcessedRef.current = true;
+      handleTimeUp();
     }
   }, [timeLeft, isAnswered]);
 
@@ -264,6 +334,7 @@ export default function QuizPlayEnhanced() {
     setIsAnswered(false);
     setTimeLeft(30);
     setFeedbackAnimation('');
+    timeUpProcessedRef.current = false;
 
     const total = randomizedQuestions.length;
     const midway = Math.floor(total / 2);
@@ -377,7 +448,7 @@ export default function QuizPlayEnhanced() {
       await supabase.from('transactions').insert({
         user_id: user!.id,
         type: 'quiz_fee',
-        amount: quiz.penaltyAmount,
+        amount: -quiz.penaltyAmount,
         status: 'completed',
         description: `Wrong answer penalty - ${quiz.title}`
       });
