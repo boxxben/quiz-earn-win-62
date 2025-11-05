@@ -52,36 +52,89 @@ export default function QuizPlayEnhanced() {
           } catch {}
           return [];
         }
-        if (Array.isArray((raw as any)?.questions)) return (raw as any).questions;
+        if (raw && typeof raw === 'object') {
+          if (Array.isArray((raw as any).questions)) return (raw as any).questions;
+        }
         return [];
       };
 
       const normalizeQuestions = (arr: any[]): any[] => {
-        return (arr || []).map((q: any, idx: number) => {
-          const opts = Array.isArray(q.options)
-            ? q.options
-            : q.options && typeof q.options === 'object'
-              ? ['A','B','C','D'].map(k => q.options[k]).filter(Boolean)
-              : [];
+        const letterIndex = (val: any) => {
+          if (typeof val === 'string') {
+            const up = val.trim().toUpperCase();
+            const idx = ['A','B','C','D'].indexOf(up);
+            if (idx >= 0) return idx;
+          }
+          if (typeof val === 'number') {
+            // Support 1-based indices
+            if (val >= 1 && val <= 4) return val - 1;
+            if (val >= 0 && val <= 3) return val;
+          }
+          return 0;
+        };
 
-          const answerIdx = typeof q.correctOption === 'number'
-            ? q.correctOption
-            : typeof q.answer === 'string'
-              ? ['A','B','C','D'].indexOf(q.answer)
-              : typeof q.correctOption === 'string'
-                ? parseInt(q.correctOption, 10)
-                : 0;
+        const extractOptions = (q: any): string[] => {
+          // Array form
+          if (Array.isArray(q?.options)) return q.options;
+
+          // Object with A-D or a-d
+          if (q?.options && typeof q.options === 'object') {
+            const mapAD = ['A','B','C','D'].map(k => q.options[k] ?? q.options[k.toLowerCase()]).filter(Boolean);
+            if (mapAD.length === 4) return mapAD as string[];
+
+            const mapNum = ['1','2','3','4'].map(k => q.options[k]).filter(Boolean);
+            if (mapNum.length === 4) return mapNum as string[];
+          }
+
+          // Separate keys optionA..optionD
+          const optAD = ['optionA','optionB','optionC','optionD'].map(k => q[k]).filter(Boolean);
+          if (optAD.length === 4) return optAD as string[];
+
+          // choices or answers array
+          if (Array.isArray(q?.choices)) return q.choices;
+          if (Array.isArray(q?.answerOptions)) return q.answerOptions;
+          if (Array.isArray(q?.answers)) return q.answers;
+
+          return [];
+        };
+
+        return (arr || []).map((q: any, idx: number) => {
+          const opts = extractOptions(q);
+
+          // Determine correct index
+          let answerIdx: number | null = null;
+          if (typeof q.correctOption !== 'undefined') {
+            answerIdx = letterIndex(q.correctOption);
+          } else if (typeof q.answer !== 'undefined') {
+            answerIdx = letterIndex(q.answer);
+          } else if (typeof q.correct !== 'undefined') {
+            answerIdx = letterIndex(q.correct);
+          } else if (q.correct_answer) {
+            // Could be letter or text
+            const byLetter = letterIndex(q.correct_answer);
+            if (byLetter !== null) answerIdx = byLetter;
+            if (answerIdx === null && Array.isArray(opts)) {
+              const textIdx = opts.findIndex((o: string) => String(o).trim() === String(q.correct_answer).trim());
+              if (textIdx >= 0) answerIdx = textIdx;
+            }
+          } else if (q.answer_text && Array.isArray(opts)) {
+            const textIdx = opts.findIndex((o: string) => String(o).trim() === String(q.answer_text).trim());
+            if (textIdx >= 0) answerIdx = textIdx;
+          }
+
+          const finalIdx = Math.max(0, Math.min(3, (answerIdx ?? 0)));
+
+          const text = q.text || q.question || q.questionText || q.prompt || '';
 
           return {
             id: q.id || `q${idx+1}`,
-            text: q.text || q.question || '',
+            text,
             options: opts,
-            correctOption: Math.max(0, Math.min(3, answerIdx)),
+            correctOption: finalIdx,
             timeLimit: q.timeLimit || 30,
           };
-        }).filter(q => q.text && q.options.length === 4);
+        }).filter(q => q.text && Array.isArray(q.options) && q.options.length === 4);
       };
-
       const { data } = await supabase
         .from('quizzes')
         .select('*')
@@ -90,7 +143,21 @@ export default function QuizPlayEnhanced() {
 
       if (data) {
         const normalizedQuestions = normalizeQuestions(normalizeArray(data.questions));
-        const normalizedRewards = normalizeArray(data.reward_progression);
+        let normalizedRewards = normalizeArray(data.reward_progression);
+
+        // Fallback: generate progressive rewards if missing/empty
+        if (!Array.isArray(normalizedRewards) || normalizedRewards.length === 0) {
+          const qCount = normalizedQuestions.length;
+          if (qCount > 0) {
+            const base = Math.max(5, Math.floor((data.prize_pool || 1000) / qCount / 2));
+            normalizedRewards = Array.from({ length: qCount }, (_, i) => ({
+              questionNumber: i + 1,
+              correctReward: Math.floor(base * (1 + i * 0.3))
+            }));
+          } else {
+            normalizedRewards = [];
+          }
+        }
 
         const quizData = {
           id: data.id,
@@ -108,6 +175,11 @@ export default function QuizPlayEnhanced() {
           rewardProgression: normalizedRewards as any[]
         };
 
+        console.info('QuizPlayEnhanced loaded quiz', {
+          id: quizData.id,
+          qCount: quizData.questions.length,
+          sample: quizData.questions[0]
+        });
         setQuiz(quizData);
         if (quizData.questions.length > 0) {
           const shuffled = [...quizData.questions].sort(() => Math.random() - 0.5);
