@@ -183,7 +183,7 @@ export default function Deposit() {
     setIsLoading(false);
 
     // Open Paystack link in new tab
-    window.open('https://paystack.shop/pay/quiz2cash01', '_blank');
+    window.open('https://paystack.shop/pay/quiz2cash', '_blank');
 
     toast({
       title: 'Payment Link Opened',
