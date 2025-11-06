@@ -37,6 +37,7 @@ export default function QuizPlayEnhanced() {
   const [showWinAnimation, setShowWinAnimation] = useState(false);
   const [loading, setLoading] = useState(true);
   const timeUpProcessedRef = useRef(false);
+  const [incorrectCount, setIncorrectCount] = useState(0);
   
   // Fetch quiz and randomize questions on mount
   useEffect(() => {
@@ -435,6 +436,9 @@ export default function QuizPlayEnhanced() {
       }
     } else {
       setFeedbackAnimation('animate-shake bg-red-100');
+      const newIncorrectCount = incorrectCount + 1;
+      setIncorrectCount(newIncorrectCount);
+      
       const newBalance = playerBalance - quiz.penaltyAmount;
       setPlayerBalance(newBalance);
       
@@ -473,6 +477,18 @@ export default function QuizPlayEnhanced() {
         description: `${formatDiamonds(quiz.penaltyAmount)} deducted from your balance`,
         variant: "destructive"
       });
+      
+      // End quiz if more than 3 wrong answers
+      if (newIncorrectCount > 3) {
+        setTimeout(async () => {
+          toast({
+            title: "Quiz Ended",
+            description: "You failed more than 3 questions. Better luck next time!",
+            variant: "destructive"
+          });
+          await finishQuizNow();
+        }, 2000);
+      }
     }
     
     // Store the answer

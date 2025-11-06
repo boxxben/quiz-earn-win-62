@@ -37,13 +37,13 @@ export default function Results() {
   const percentage = Math.round((score / totalQuestions) * 100);
   const rank = Math.ceil(Math.random() * 15) + 1; // Mock rank
   
-  // Calculate earnings in diamonds based on performance
+  // Calculate earnings in diamonds - only if ALL questions are correct
   const calculateEarnings = () => {
-    if (percentage >= 90) return 50; // Top performer (50 diamonds = ₦2500)
-    if (percentage >= 80) return 30; // Good performer (30 diamonds = ₦1500)
-    if (percentage >= 70) return 16;  // Average performer (16 diamonds = ₦800)
-    if (percentage >= 60) return 8;  // Below average (8 diamonds = ₦400)
-    return 0; // No earnings for <60%
+    // User must answer ALL questions correctly to win
+    if (score === totalQuestions) {
+      return finalReward || 50; // Use final reward from quiz or default 50 diamonds
+    }
+    return 0; // No earnings unless 100% correct
   };
 
   const earnings = calculateEarnings();
@@ -109,10 +109,9 @@ export default function Results() {
   }, []);
 
   const getPerformanceMessage = () => {
-    if (percentage >= 90) return { message: "Outstanding! 🏆", color: "text-yellow-600" };
-    if (percentage >= 80) return { message: "Excellent! 🎯", color: "text-accent" };
-    if (percentage >= 70) return { message: "Good Job! 👍", color: "text-blue-600" };
-    if (percentage >= 60) return { message: "Keep Practicing! 📚", color: "text-orange-600" };
+    if (percentage === 100) return { message: "Perfect! You Win! 🏆", color: "text-yellow-600" };
+    if (percentage >= 90) return { message: "So Close! 🎯", color: "text-accent" };
+    if (percentage >= 70) return { message: "Good Effort! 👍", color: "text-blue-600" };
     return { message: "Better Luck Next Time! 💪", color: "text-muted-foreground" };
   };
 
@@ -177,7 +176,7 @@ export default function Results() {
               <Clock size={32} className="mx-auto mb-3 text-orange-600" />
               <p className="font-medium text-orange-800 dark:text-orange-200 mb-2">No Earnings This Time</p>
               <p className="text-sm text-orange-700 dark:text-orange-300">
-                Score 60% or higher to earn money from quizzes
+                You must answer ALL questions correctly to win the prize!
               </p>
             </CardContent>
           </Card>
