@@ -129,6 +129,7 @@ export default function AdminPayments() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
+      case 'pending_approval':
         return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock size={12} className="mr-1" />Pending</Badge>;
       case 'completed':
         return <Badge className="bg-green-100 text-green-800"><CheckCircle size={12} className="mr-1" />Approved</Badge>;
@@ -157,7 +158,7 @@ export default function AdminPayments() {
         <div className="grid grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending').length}</p>
+              <p className="text-2xl font-bold text-yellow-600">{withdrawals.filter(w => w.status === 'pending' || w.status === 'pending_approval').length}</p>
               <p className="text-sm text-muted-foreground">Pending</p>
             </CardContent>
           </Card>
@@ -223,7 +224,7 @@ export default function AdminPayments() {
                       )}
                     </div>
                     
-                    {(withdrawal.status === 'pending') && !processingIds.has(withdrawal.id) && (
+                    {(withdrawal.status === 'pending' || withdrawal.status === 'pending_approval') && !processingIds.has(withdrawal.id) && (
                       <div className="flex space-x-2 ml-4">
                         <Button
                           size="sm"

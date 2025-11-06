@@ -58,7 +58,7 @@ serve(async (req) => {
       .from("transactions")
       .select("*")
       .eq("id", transactionId)
-      .eq("status", "pending")
+      .in("status", ["pending", "pending_approval"])
       .single();
 
     if (txFetchError || !transaction) {
@@ -72,7 +72,7 @@ serve(async (req) => {
       .from("transactions")
       .update({ status: newStatus })
       .eq("id", transactionId)
-      .eq("status", "pending");
+      .in("status", ["pending", "pending_approval"]);
 
     if (txUpdateError) {
       throw new Error("Failed to update transaction");
@@ -105,7 +105,7 @@ serve(async (req) => {
         // Rollback transaction status
         await supabaseAdmin
           .from("transactions")
-          .update({ status: "pending" })
+          .update({ status: transaction.status })
           .eq("id", transactionId);
         throw new Error("Failed to update user balance");
       }
