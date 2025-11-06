@@ -143,6 +143,39 @@ export default function Home() {
     }
   };
 
+  const handleLikePost = async (postId: string, currentLikes: number) => {
+    try {
+      // Optimistically update UI
+      setPosts(posts.map(p => 
+        p.id === postId ? { ...p, likes: currentLikes + 1 } : p
+      ));
+
+      // Update in database
+      const { error } = await supabase
+        .from('posts')
+        .update({ likes: currentLikes + 1 })
+        .eq('id', postId);
+
+      if (error) throw error;
+
+      toast({
+        title: '❤️ Liked!',
+        description: 'Your support means a lot',
+      });
+    } catch (error) {
+      // Revert on error
+      setPosts(posts.map(p => 
+        p.id === postId ? { ...p, likes: currentLikes } : p
+      ));
+      
+      toast({
+        title: 'Error',
+        description: 'Failed to like post. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const formatTimeAgo = (date: string) => {
     const now = new Date();
     const diff = now.getTime() - new Date(date).getTime();
@@ -305,7 +338,10 @@ export default function Home() {
                       </div>
                       <p className="text-sm text-foreground mb-3">{post.content}</p>
                       <div className="flex items-center gap-4 text-muted-foreground">
-                        <button className="flex items-center gap-1 hover:text-red-500 transition-colors">
+                        <button 
+                          onClick={() => handleLikePost(post.id, post.likes)}
+                          className="flex items-center gap-1 hover:text-red-500 transition-colors"
+                        >
                           <Heart size={18} />
                           <span className="text-xs">{post.likes}</span>
                         </button>
