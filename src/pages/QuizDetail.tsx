@@ -136,7 +136,7 @@ export default function QuizDetail() {
     await supabase.from('transactions').insert({
       user_id: user!.id,
       type: 'quiz_fee',
-      amount: quiz.entryFee,
+      amount: -quiz.entryFee,
       status: 'completed',
       description: `Quiz entry fee - ${quiz.title}`
     });

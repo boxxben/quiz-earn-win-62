@@ -252,26 +252,22 @@ export default function QuizPlayEnhanced() {
       return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
     }, 0);
 
-    const finalCorrectCount = correctCount;
-    const totalAnswered = currentQuestionIndex + 1;
-    const finalReward = finalCorrectCount > midwayPoint ? accumulatedReward : 0;
-
-    await supabase.from('quiz_attempts').insert({
-      user_id: user!.id,
-      quiz_id: quizId,
-      score: finalCorrectCount,
-      total_questions: totalAnswered,
-      reward_earned: finalReward
-    });
+    const answeredCount = currentQuestionIndex + 1;
+    const fullTotal = randomizedQuestions.length;
+    const allAnswered = answeredCount === fullTotal;
+    const allCorrect = allAnswered && correctCount === fullTotal;
+    const totalPossible = (quiz.rewardProgression || [])
+      .reduce((sum: number, r: any) => sum + (r.correctReward || 0), 0);
+    const finalReward = allCorrect ? totalPossible : 0;
 
     navigate(`/quiz/${quizId}/results`, {
       state: {
-        score: finalCorrectCount,
-        totalQuestions: totalAnswered,
+        score: correctCount,
+        totalQuestions: fullTotal,
         answers: answers,
         quizTitle: quiz.title,
         finalReward,
-        balanceChange: finalReward - (quiz.entryFee + ((totalAnswered - finalCorrectCount) * quiz.penaltyAmount)),
+        balanceChange: finalReward - quiz.entryFee,
         isTimeUp: true
       }
     });
@@ -280,34 +276,9 @@ export default function QuizPlayEnhanced() {
   // Handle time up: deduct penalty and finish
   const handleTimeUp = async () => {
     try {
-      // Deduct penalty for unanswered question
-      const newBalance = playerBalance - quiz.penaltyAmount;
-      setPlayerBalance(newBalance);
-
-      await supabase
-        .from('profiles')
-        .update({ balance: newBalance })
-        .eq('user_id', user!.id);
-
-      await supabase.from('transactions').insert({
-        user_id: user!.id,
-        type: 'quiz_fee',
-        amount: -quiz.penaltyAmount,
-        status: 'completed',
-        description: `Time up penalty - ${quiz.title}`
-      });
-
-      addTransaction({
-        type: 'quiz_fee',
-        amount: -quiz.penaltyAmount,
-        status: 'completed',
-        description: `Time up penalty - ${quiz.title}`
-      });
-
       toast({
         title: "Time's up ⏰",
-        description: `${formatDiamonds(quiz.penaltyAmount)} deducted from your balance`,
-        variant: 'destructive'
+        description: `Moving to results...`,
       });
     } finally {
       await finishQuizNow();
@@ -386,7 +357,6 @@ export default function QuizPlayEnhanced() {
     if (isCorrect) {
       setFeedbackAnimation('animate-pulse bg-green-100');
       const reward = currentReward?.correctReward || 0;
-      const newBalance = playerBalance + reward;
       
       // Play correct sound
       playCorrectSound();
@@ -395,86 +365,29 @@ export default function QuizPlayEnhanced() {
       setDiamondOverlay({ show: true, amount: reward, type: 'correct' });
       setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
       
-      if (newBalance <= MAX_WALLET_BALANCE) {
-        setAccumulatedReward(prev => prev + reward);
-        setPlayerBalance(newBalance);
-        
-        // Update balance in database immediately
-        await supabase
-          .from('profiles')
-          .update({ balance: newBalance })
-          .eq('user_id', user!.id);
-        
-        // Record credit transaction
-        await supabase.from('transactions').insert({
-          user_id: user!.id,
-          type: 'quiz_reward',
-          amount: reward,
-          status: 'completed',
-          description: `Correct answer reward - ${quiz.title}`
-        });
-        
-        // Update local transaction context
-        addTransaction({
-          type: 'quiz_reward',
-          amount: reward,
-          status: 'completed',
-          description: `Correct answer reward - ${quiz.title}`
-        });
-        
-        toast({
-          title: "Correct! ✅",
-          description: `You earned ${formatDiamonds(reward)}!`,
-          className: "border-green-500 bg-green-50 text-green-800"
-        });
-      } else {
-        toast({
-          title: "Wallet Limit Reached! ⚠️",
-          description: `You can't hold more than ${MAX_WALLET_BALANCE} diamonds`,
-          variant: "destructive"
-        });
-      }
+      // Track potential reward only; wallet updates happen at Results if you answered all correctly
+      setAccumulatedReward(prev => prev + reward);
+      
+      toast({
+        title: "Correct! ✅",
+        description: `+${formatDiamonds(reward)} potential reward`,
+        className: "border-green-500 bg-green-50 text-green-800"
+      });
     } else {
       setFeedbackAnimation('animate-shake bg-red-100');
       const newIncorrectCount = incorrectCount + 1;
       setIncorrectCount(newIncorrectCount);
       
-      const newBalance = playerBalance - quiz.penaltyAmount;
-      setPlayerBalance(newBalance);
-      
-      // Update balance in database immediately
-      await supabase
-        .from('profiles')
-        .update({ balance: newBalance })
-        .eq('user_id', user!.id);
-      
-      // Record penalty transaction
-      await supabase.from('transactions').insert({
-        user_id: user!.id,
-        type: 'quiz_fee',
-        amount: -quiz.penaltyAmount,
-        status: 'completed',
-        description: `Wrong answer penalty - ${quiz.title}`
-      });
-      
-      // Update local transaction context
-      addTransaction({
-        type: 'quiz_fee',
-        amount: -quiz.penaltyAmount,
-        status: 'completed',
-        description: `Wrong answer penalty - ${quiz.title}`
-      });
-      
       // Play incorrect sound
       playIncorrectSound();
       
-      // Show penalty overlay animation
-      setDiamondOverlay({ show: true, amount: quiz.penaltyAmount, type: 'incorrect' });
+      // Show feedback animation (no wallet deduction during quiz)
+      setDiamondOverlay({ show: true, amount: 0, type: 'incorrect' });
       setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
       
       toast({
         title: "Incorrect ❌",
-        description: `${formatDiamonds(quiz.penaltyAmount)} deducted from your balance`,
+        description: `No deduction now. Quiz ends after more than 3 wrong answers`,
         variant: "destructive"
       });
       
@@ -513,19 +426,13 @@ export default function QuizPlayEnhanced() {
         ? correctCount + 1 
         : correctCount;
       
-      const finalReward = finalCorrectCount > midwayPoint ? accumulatedReward : 0;
-      
-      // Record quiz attempt
-      await supabase.from('quiz_attempts').insert({
-        user_id: user!.id,
-        quiz_id: quizId,
-        score: finalCorrectCount,
-        total_questions: totalQuestions,
-        reward_earned: finalReward
-      });
+      const allCorrect = finalCorrectCount === totalQuestions;
+      const totalPossible = (quiz.rewardProgression || [])
+        .reduce((sum: number, r: any) => sum + (r.correctReward || 0), 0);
+      const finalReward = allCorrect ? totalPossible : 0;
       
       // Show win animation and play sound if all questions correct
-      if (finalCorrectCount === totalQuestions) {
+      if (allCorrect) {
         setShowWinAnimation(true);
         playWinSound();
         setTimeout(() => {
@@ -535,8 +442,8 @@ export default function QuizPlayEnhanced() {
               totalQuestions,
               answers: [...answers, selectedAnswer || -1],
               quizTitle: quiz.title,
-              finalReward: finalReward,
-              balanceChange: finalReward - (quiz.entryFee + ((totalQuestions - finalCorrectCount) * quiz.penaltyAmount))
+              finalReward,
+              balanceChange: finalReward - quiz.entryFee
             }
           });
         }, 3000);
@@ -547,8 +454,8 @@ export default function QuizPlayEnhanced() {
             totalQuestions,
             answers: [...answers, selectedAnswer || -1],
             quizTitle: quiz.title,
-            finalReward: finalReward,
-            balanceChange: finalReward - (quiz.entryFee + ((totalQuestions - finalCorrectCount) * quiz.penaltyAmount))
+            finalReward,
+            balanceChange: -quiz.entryFee
           }
         });
       }
@@ -572,15 +479,6 @@ export default function QuizPlayEnhanced() {
       return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
     }, 0);
     
-    // Record quiz attempt
-    await supabase.from('quiz_attempts').insert({
-      user_id: user!.id,
-      quiz_id: quizId,
-      score: currentCorrect,
-      total_questions: currentQuestionIndex + 1,
-      reward_earned: 0
-    });
-    
     navigate(`/quiz/${quizId}/results`, { 
       state: { 
         score: currentCorrect,
@@ -588,7 +486,7 @@ export default function QuizPlayEnhanced() {
         answers: answers,
         quizTitle: quiz.title,
         finalReward: 0, // No reward for quitting
-        balanceChange: -(quiz.entryFee + ((currentQuestionIndex + 1 - currentCorrect) * quiz.penaltyAmount)),
+        balanceChange: -quiz.entryFee,
         isQuit: true
       }
     });

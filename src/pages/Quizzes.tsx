@@ -9,6 +9,8 @@ import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/currency';
+import { supabase } from '@/integrations/supabase/client';
+import { useTransactions } from '@/contexts/TransactionContext';
 import { 
   MagnifyingGlass, 
   Clock, 
@@ -22,8 +24,9 @@ const entryFees = ['All', '0-10', '11-20', '21-100', '100+'];
 
 export default function Quizzes() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
+  const { addTransaction } = useTransactions();
   const { availableQuizzes, startQuiz, refreshQuizzes } = useQuizAvailability();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,9 +91,23 @@ export default function Quizzes() {
     const success = await startQuiz(quizId);
     
     if (success) {
+      // Debit entry fee on join
+      const quiz = availableQuizzes.find(q => q.id === quizId);
+      const newBalance = user.balance - entryFee;
+      await supabase.from('profiles').update({ balance: newBalance }).eq('user_id', user.id);
+      await supabase.from('transactions').insert({
+        user_id: user.id,
+        type: 'quiz_fee',
+        amount: -entryFee,
+        status: 'completed',
+        description: `Quiz entry fee - ${quiz?.title || 'Quiz'}`
+      });
+      updateUser({ balance: newBalance });
+      addTransaction({ type: 'quiz_fee', amount: -entryFee, status: 'completed', description: `Quiz entry fee - ${quiz?.title || 'Quiz'}` });
+
       toast({
         title: "Quiz Started! 🎉",
-        description: "Good luck! Remember, you can't quit until halfway through.",
+        description: "Entry fee deducted. Good luck!",
         className: "border-green-500 bg-green-50 text-green-800"
       });
       navigate(`/quiz/${quizId}/play`);
