@@ -132,6 +132,12 @@ export default function QuizDetail() {
       return;
     }
 
+    // Mark quiz as unavailable for other users
+    await supabase
+      .from('quizzes')
+      .update({ is_available: false })
+      .eq('id', quizId);
+
     // Record transaction in database
     await supabase.from('transactions').insert({
       user_id: user!.id,

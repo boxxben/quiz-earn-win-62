@@ -95,6 +95,10 @@ export default function Quizzes() {
       const quiz = availableQuizzes.find(q => q.id === quizId);
       const newBalance = user.balance - entryFee;
       await supabase.from('profiles').update({ balance: newBalance }).eq('user_id', user.id);
+      
+      // Mark quiz as unavailable for other users
+      await supabase.from('quizzes').update({ is_available: false }).eq('id', quizId);
+      
       await supabase.from('transactions').insert({
         user_id: user.id,
         type: 'quiz_fee',
