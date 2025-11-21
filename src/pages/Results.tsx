@@ -15,7 +15,7 @@ import {
   Target,
   Clock
 } from '@phosphor-icons/react';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, formatDiamonds } from '@/lib/currency';
 import { MAX_WALLET_BALANCE } from '@/lib/constants';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -53,12 +53,12 @@ export default function Results() {
       // Calculate new balance but enforce limit
       const newBalance = Math.min(user.balance + earnings, MAX_WALLET_BALANCE);
       
-      // Update user stats
+      // Update user stats in database and local state
       updateUser({
         balance: newBalance,
         totalEarnings: (user.totalEarnings || 0) + earnings,
         quizzesPlayed: (user.quizzesPlayed || 0) + 1,
-        quizzesWon: percentage >= 70 ? (user.quizzesWon || 0) + 1 : user.quizzesWon
+        quizzesWon: percentage === 100 ? (user.quizzesWon || 0) + 1 : user.quizzesWon
       });
 
       // Save quiz attempt and mark quiz as unavailable
@@ -166,7 +166,7 @@ export default function Results() {
           <Card className="border-accent/30 bg-accent/5">
             <CardContent className="p-6 text-center">
               <Coins size={32} className="mx-auto mb-3 text-accent" />
-              <p className="text-2xl font-bold text-accent mb-2">{formatCurrency(earnings)}</p>
+              <p className="text-2xl font-bold text-accent mb-2">{formatDiamonds(earnings)}</p>
               <p className="text-sm text-muted-foreground">Added to your wallet!</p>
             </CardContent>
           </Card>
