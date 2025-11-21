@@ -112,11 +112,12 @@ const Splash = () => {
         <div className={`transition-all duration-1500 transform ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-20 opacity-0 scale-90'}`}>
           <div className="relative mb-2">
             <img 
-              src="/quiz2cash-logo-no-bg.png" 
+              src="/quiz2cashlogo1-removebg-preview.png" 
               alt="Quiz2cash" 
               className="w-64 sm:w-80 md:w-96 lg:w-[32rem] mx-auto animate-neon-pulse"
               style={{ 
-                filter: 'drop-shadow(0 0 30px rgba(255, 165, 0, 0.5))'
+                filter: 'drop-shadow(0 0 30px rgba(255, 165, 0, 0.5))',
+                background: 'transparent'
               }}
             />
           </div>
