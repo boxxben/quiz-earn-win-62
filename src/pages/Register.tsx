@@ -83,9 +83,12 @@ export default function Register() {
         <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
           <ArrowLeft size={20} />
         </Button>
-        <div className="flex items-center ml-4">
-          <Brain size={24} className="text-primary mr-2" />
-          <span className="font-bold text-lg">Quiz2cash</span>
+        <div className="ml-4">
+          <img 
+            src="/quiz2cashlogo1-removebg-preview.png" 
+            alt="Quiz2cash" 
+            className="h-10"
+          />
         </div>
       </div>
 

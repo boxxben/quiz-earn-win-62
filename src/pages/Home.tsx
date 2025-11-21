@@ -50,33 +50,49 @@ export default function Home() {
   // Fetch community posts
   useEffect(() => {
     const fetchPosts = async () => {
-      const { data: postsData } = await supabase
+      const { data: postsData, error: postsError } = await supabase
         .from('posts')
-        .select(`
-          id,
-          user_id,
-          content,
-          likes,
-          created_at,
-          profiles:user_id (
-            name,
-            avatar
-          )
-        `)
+        .select('id, user_id, content, likes, created_at')
         .order('created_at', { ascending: false })
         .limit(20);
       
-      if (postsData) {
-        const formattedPosts = postsData.map((post: any) => ({
-          id: post.id,
-          user_id: post.user_id,
-          content: post.content,
-          created_at: post.created_at,
-          likes: post.likes,
-          comments: 0, // Will add comments feature later
-          user_name: post.profiles?.name || 'Unknown User',
-          user_avatar: post.profiles?.avatar || ''
-        }));
+      if (postsError) {
+        console.error('Error fetching posts:', postsError);
+        return;
+      }
+      
+      if (postsData && postsData.length > 0) {
+        // Get unique user IDs
+        const userIds = [...new Set(postsData.map(post => post.user_id))];
+        
+        // Fetch profiles for these users
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('user_id, name, avatar')
+          .in('user_id', userIds);
+        
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
+        
+        // Create a map of user_id to profile
+        const profilesMap = new Map(
+          profilesData?.map(profile => [profile.user_id, profile]) || []
+        );
+        
+        const formattedPosts = postsData.map((post: any) => {
+          const profile = profilesMap.get(post.user_id);
+          return {
+            id: post.id,
+            user_id: post.user_id,
+            content: post.content,
+            created_at: post.created_at,
+            likes: post.likes,
+            comments: 0,
+            user_name: profile?.name || 'Unknown User',
+            user_avatar: profile?.avatar || ''
+          };
+        });
         setPosts(formattedPosts);
       }
     };
