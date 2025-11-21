@@ -11,6 +11,7 @@ import { ArrowLeft, Plus, Trash, MagicWand } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
 import { Question, QuizReward } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { nairaTodiamonds } from '@/lib/currency';
 
 export default function AdminQuizCreate() {
   const { user, hydrated } = useAuth();
@@ -267,9 +268,10 @@ export default function AdminQuizCreate() {
           };
         });
 
-        // Generate rewards using bulk settings
+        // Generate rewards using bulk settings (convert naira to diamonds)
         const numQuestions = convertedQuestions.length;
-        const baseReward = Math.floor(bulkSettings.prizePool / numQuestions / 2);
+        const prizePoolInDiamonds = nairaTodiamonds(bulkSettings.prizePool);
+        const baseReward = Math.floor(prizePoolInDiamonds / numQuestions / 2);
         const rewardProgression = [];
         
         for (let i = 1; i <= numQuestions; i++) {
@@ -283,8 +285,8 @@ export default function AdminQuizCreate() {
         const quizDbData = {
           title: quizData.quiz_title,
           description: `Quiz with ${numQuestions} questions`,
-          entry_fee: bulkSettings.entryFee,
-          prize_pool: bulkSettings.prizePool,
+          entry_fee: nairaTodiamonds(bulkSettings.entryFee),
+          prize_pool: nairaTodiamonds(bulkSettings.prizePool),
           start_time: startTime.toISOString(),
           end_time: endTime.toISOString(),
           duration: bulkSettings.duration,
@@ -292,7 +294,7 @@ export default function AdminQuizCreate() {
           is_available: true,
           questions: convertedQuestions as any,
           reward_progression: rewardProgression as any,
-          penalty_amount: bulkSettings.penaltyAmount
+          penalty_amount: nairaTodiamonds(bulkSettings.penaltyAmount)
         };
 
         const { error } = await supabase
