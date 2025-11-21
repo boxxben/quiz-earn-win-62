@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, formatDiamonds } from '@/lib/currency';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft, 
@@ -212,7 +212,7 @@ export default function AdminQuizzes() {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center space-x-2">
                           <Coins size={16} className="text-primary" />
-                          <span>Entry Fee: {formatCurrency(quiz.entryFee)}</span>
+                          <span>Entry Fee: {formatDiamonds(quiz.entryFee)}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Users size={16} className="text-accent" />
@@ -223,7 +223,7 @@ export default function AdminQuizzes() {
                           <span>Duration: {quiz.duration} min</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span>Prize Pool: {formatCurrency(quiz.prizePool)}</span>
+                          <span>Prize Pool: {formatDiamonds(quiz.prizePool)}</span>
                         </div>
                       </div>
                       

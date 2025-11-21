@@ -197,13 +197,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUser = async (updates: Partial<User>) => {
     if (user && authUser) {
+      // Build update object with only provided fields
+      const updateData: any = {};
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.country !== undefined) updateData.country = updates.country;
+      if (updates.avatar !== undefined) updateData.avatar = updates.avatar;
+      if (updates.balance !== undefined) updateData.balance = updates.balance;
+      if (updates.totalEarnings !== undefined) updateData.total_earnings = updates.totalEarnings;
+      if (updates.quizzesPlayed !== undefined) updateData.quizzes_played = updates.quizzesPlayed;
+      if (updates.quizzesWon !== undefined) updateData.quizzes_won = updates.quizzesWon;
+      if (updates.rank !== undefined) updateData.rank = updates.rank;
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          name: updates.name,
-          country: updates.country,
-          avatar: updates.avatar
-        })
+        .update(updateData)
         .eq('user_id', authUser.id);
 
       if (!error) {

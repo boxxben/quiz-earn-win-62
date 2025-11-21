@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, formatDiamonds } from '@/lib/currency';
 import { supabase } from '@/integrations/supabase/client';
 import { useTransactions } from '@/contexts/TransactionContext';
 import { 
@@ -208,7 +208,7 @@ export default function Quizzes() {
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <Coins size={16} className="mr-1" />
-                            <span className="text-foreground font-medium">{formatCurrency(quiz.entryFee)}</span>
+                            <span className="text-foreground font-medium">{formatDiamonds(quiz.entryFee)}</span>
                           </div>
                           <div className="flex items-center">
                             <Users size={16} className="mr-1" />
@@ -225,7 +225,7 @@ export default function Quizzes() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-accent">Prize Pool: <span className="text-foreground">{formatCurrency(quiz.prizePool)}</span></p>
+                        <p className="font-semibold text-accent">Prize Pool: <span className="text-foreground">{formatDiamonds(quiz.prizePool)}</span></p>
                       </div>
                       <Button 
                         size="sm" 
@@ -258,7 +258,7 @@ export default function Quizzes() {
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <Coins size={16} className="mr-1" />
-                            <span className="text-foreground font-medium">{formatCurrency(quiz.entryFee)}</span>
+                            <span className="text-foreground font-medium">{formatDiamonds(quiz.entryFee)}</span>
                           </div>
                           <div className="flex items-center">
                             <Users size={16} className="mr-1" />
@@ -275,7 +275,7 @@ export default function Quizzes() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-primary">Prize Pool: <span className="text-foreground">{formatCurrency(quiz.prizePool)}</span></p>
+                      <p className="font-semibold text-primary">Prize Pool: <span className="text-foreground">{formatDiamonds(quiz.prizePool)}</span></p>
                       <p className="text-xs text-muted-foreground">
                         Starts {quiz.startTime.toLocaleDateString()} at {quiz.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>

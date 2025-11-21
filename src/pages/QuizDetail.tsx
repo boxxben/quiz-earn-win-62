@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
-import { formatCurrency } from '@/lib/currency';
+import { formatCurrency, formatDiamonds } from '@/lib/currency';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, 
@@ -109,7 +109,7 @@ export default function QuizDetail() {
     if (user!.balance < quiz.entryFee) {
       toast({
         title: 'Insufficient Balance',
-        description: `You need ${formatCurrency(quiz.entryFee)} to join this quiz. Please add money to your wallet.`,
+        description: `You need ${formatDiamonds(quiz.entryFee)} to join this quiz. Please add money to your wallet.`,
         variant: 'destructive'
       });
       return;
@@ -184,7 +184,7 @@ export default function QuizDetail() {
             {/* Prize Pool */}
             <div className="text-center p-4 bg-accent/10 rounded-lg">
               <Trophy size={32} className="mx-auto mb-2 text-accent" />
-              <p className="text-2xl font-bold text-accent">{formatCurrency(quiz.prizePool)}</p>
+              <p className="text-2xl font-bold text-accent">{formatDiamonds(quiz.prizePool)}</p>
               <p className="text-sm text-muted-foreground">Total Prize Pool</p>
             </div>
 
@@ -192,7 +192,7 @@ export default function QuizDetail() {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 border rounded-lg">
                 <Coins size={20} className="mx-auto mb-1 text-primary" />
-                <p className="font-semibold">{formatCurrency(quiz.entryFee)}</p>
+                <p className="font-semibold">{formatDiamonds(quiz.entryFee)}</p>
                 <p className="text-xs text-muted-foreground">Entry Fee</p>
               </div>
               <div className="text-center p-3 border rounded-lg">
@@ -295,7 +295,7 @@ export default function QuizDetail() {
               <CardContent className="p-4 text-center">
                 <p className="text-sm text-destructive mb-2">Insufficient Balance</p>
                 <p className="text-xs text-muted-foreground mb-3">
-                  You need {formatCurrency(quiz.entryFee - user.balance)} more to join this quiz
+                  You need {formatDiamonds(quiz.entryFee - user.balance)} more to join this quiz
                 </p>
                 <Button asChild size="sm" variant="outline">
                   <a href="/wallet/deposit">Add Money</a>
@@ -319,7 +319,7 @@ export default function QuizDetail() {
             size="lg"
             className="w-full"
           >
-            {isCheckingAttempt ? 'Loading...' : hasAttempted ? 'Already Attempted' : `${quiz.status === 'active' ? 'Join Now' : 'Join Quiz'} - ${formatCurrency(quiz.entryFee)}`}
+            {isCheckingAttempt ? 'Loading...' : hasAttempted ? 'Already Attempted' : `${quiz.status === 'active' ? 'Join Now' : 'Join Quiz'} - ${formatDiamonds(quiz.entryFee)}`}
           </Button>
         </div>
       </div>
