@@ -38,6 +38,7 @@ export default function QuizPlayEnhanced() {
   const [loading, setLoading] = useState(true);
   const timeUpProcessedRef = useRef(false);
   const [incorrectCount, setIncorrectCount] = useState(0);
+  const [potentialEarnings, setPotentialEarnings] = useState(0);
   
   // Fetch quiz and randomize questions on mount
   useEffect(() => {
@@ -182,6 +183,11 @@ export default function QuizPlayEnhanced() {
           qCount: quizData.questions.length,
           sample: quizData.questions[0]
         });
+        
+        // Calculate total potential earnings
+        const totalPossible = normalizedRewards.reduce((sum: number, r: any) => sum + (r.correctReward || 0), 0);
+        setPotentialEarnings(totalPossible);
+        
         setQuiz(quizData);
         if (quizData.questions.length > 0) {
           const shuffled = [...quizData.questions].sort(() => Math.random() - 0.5);
@@ -256,9 +262,7 @@ export default function QuizPlayEnhanced() {
     const fullTotal = randomizedQuestions.length;
     const allAnswered = answeredCount === fullTotal;
     const allCorrect = allAnswered && correctCount === fullTotal;
-    const totalPossible = (quiz.rewardProgression || [])
-      .reduce((sum: number, r: any) => sum + (r.correctReward || 0), 0);
-    const finalReward = allCorrect ? totalPossible : 0;
+    const finalReward = allCorrect ? potentialEarnings : 0;
 
     navigate(`/quiz/${quizId}/results`, {
       state: {
@@ -353,6 +357,11 @@ export default function QuizPlayEnhanced() {
     
     const isCorrect = optionIndex === currentQuestion.correctOption;
     
+    // Store the answer first
+    const newAnswers = [...answers];
+    newAnswers[currentQuestionIndex] = optionIndex;
+    setAnswers(newAnswers);
+    
     // Animate feedback
     if (isCorrect) {
       setFeedbackAnimation('animate-pulse bg-green-100');
@@ -365,9 +374,6 @@ export default function QuizPlayEnhanced() {
       setDiamondOverlay({ show: true, amount: reward, type: 'correct' });
       setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
       
-      // Track potential reward only; wallet updates happen at Results if you answered all correctly
-      setAccumulatedReward(prev => prev + reward);
-      
       toast({
         title: "Correct! ✅",
         description: `+${formatDiamonds(reward)} potential reward`,
@@ -378,20 +384,41 @@ export default function QuizPlayEnhanced() {
       const newIncorrectCount = incorrectCount + 1;
       setIncorrectCount(newIncorrectCount);
       
+      // Deduct from potential earnings on each wrong answer
+      const penaltyPerWrong = currentReward?.correctReward || 0;
+      setPotentialEarnings(prev => Math.max(0, prev - penaltyPerWrong));
+      
       // Play incorrect sound
       playIncorrectSound();
       
-      // Show feedback animation (no wallet deduction during quiz)
-      setDiamondOverlay({ show: true, amount: 0, type: 'incorrect' });
+      // Show penalty
+      setDiamondOverlay({ show: true, amount: -penaltyPerWrong, type: 'incorrect' });
       setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
       
       toast({
         title: "Incorrect ❌",
-        description: `No deduction now. Quiz ends after more than 3 wrong answers`,
+        description: `-${formatDiamonds(penaltyPerWrong)} from potential earnings`,
         variant: "destructive"
       });
       
-      // End quiz if more than 3 wrong answers
+      // Check if first 3 questions are all wrong
+      if (currentQuestionIndex < 3 && newIncorrectCount === currentQuestionIndex + 1) {
+        // All questions so far are wrong
+        if (currentQuestionIndex === 2) {
+          // First 3 questions all wrong - end quiz
+          setTimeout(async () => {
+            toast({
+              title: "Quiz Ended",
+              description: "You failed the first 3 questions. Better luck next time!",
+              variant: "destructive"
+            });
+            await finishQuizNow();
+          }, 2000);
+          return;
+        }
+      }
+      
+      // End quiz if more than 3 wrong answers total
       if (newIncorrectCount > 3) {
         setTimeout(async () => {
           toast({
@@ -401,13 +428,9 @@ export default function QuizPlayEnhanced() {
           });
           await finishQuizNow();
         }, 2000);
+        return;
       }
     }
-    
-    // Store the answer
-    const newAnswers = [...answers];
-    newAnswers[currentQuestionIndex] = optionIndex;
-    setAnswers(newAnswers);
     
     // Clear animation after delay
     setTimeout(() => setFeedbackAnimation(''), 1000);
@@ -417,19 +440,17 @@ export default function QuizPlayEnhanced() {
     if (currentQuestionIndex < totalQuestions - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     } else {
-        // Quiz completed, navigate to results
-        const correctCount = answers.reduce((count, answer, index) => {
-          return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
-        }, 0);
+      // Quiz completed, navigate to results
+      const correctCount = answers.reduce((count, answer, index) => {
+        return count + (answer === randomizedQuestions[index]?.correctOption ? 1 : 0);
+      }, 0);
       
       const finalCorrectCount = selectedAnswer === currentQuestion.correctOption 
         ? correctCount + 1 
         : correctCount;
       
       const allCorrect = finalCorrectCount === totalQuestions;
-      const totalPossible = (quiz.rewardProgression || [])
-        .reduce((sum: number, r: any) => sum + (r.correctReward || 0), 0);
-      const finalReward = allCorrect ? totalPossible : 0;
+      const finalReward = allCorrect ? potentialEarnings : 0;
       
       // Show win animation and play sound if all questions correct
       if (allCorrect) {
@@ -454,7 +475,7 @@ export default function QuizPlayEnhanced() {
             totalQuestions,
             answers: [...answers, selectedAnswer || -1],
             quizTitle: quiz.title,
-            finalReward,
+            finalReward: 0,
             balanceChange: -quiz.entryFee
           }
         });
