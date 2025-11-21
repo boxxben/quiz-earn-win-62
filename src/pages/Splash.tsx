@@ -119,18 +119,18 @@ const Splash = () => {
           </div>
           
           {/* Animated subtitle */}
-          <div className={`transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <p className="text-xl sm:text-2xl md:text-3xl text-muted-foreground font-medium tracking-wide">
+          <div className={`mt-4 transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+            <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground font-medium tracking-wide">
               Turn Knowledge Into Cash
             </p>
-            <p className="text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto leading-relaxed mt-2">
               Challenge yourself, earn rewards, and climb the leaderboards
             </p>
           </div>
         </div>
 
         {/* Enhanced Navigation Button with icon animations */}
-        <div className={`mt-8 transition-all duration-1200 delay-700 transform ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-20 opacity-0 scale-90'}`}>
+        <div className={`mt-6 transition-all duration-1200 delay-700 transform ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-20 opacity-0 scale-90'}`}>
           <div className="relative">
             {/* Button glow effect */}
             <div className="absolute inset-0 bg-gradient-primary rounded-full blur-xl opacity-30 animate-pulse"></div>
@@ -152,7 +152,7 @@ const Splash = () => {
         </div>
 
         {/* Feature indicators */}
-        <div className={`mt-6 transition-all duration-1000 delay-1000 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+        <div className={`mt-4 transition-all duration-1000 delay-1000 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div className="flex justify-center items-center space-x-8">
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <Trophy className="w-4 h-4 text-gold" />
@@ -172,7 +172,7 @@ const Splash = () => {
         </div>
 
         {/* Footer Links */}
-        <div className={`mt-4 transition-all duration-1000 delay-1200 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+        <div className={`mt-3 transition-all duration-1000 delay-1200 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div className="flex justify-center items-center flex-wrap gap-4 text-sm text-muted-foreground">
             <a href="/about" className="hover:text-primary transition-colors">About</a>
             <div className="w-px h-4 bg-border"></div>
