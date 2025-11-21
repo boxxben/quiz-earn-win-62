@@ -115,13 +115,16 @@ const Splash = () => {
               src="/quiz2cashlogo1-removebg-preview.png" 
               alt="Quiz2cash" 
               className="w-64 sm:w-80 md:w-96 lg:w-[32rem] mx-auto animate-neon-pulse drop-shadow-2xl"
-              style={{ filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.3))' }}
+              style={{ 
+                mixBlendMode: 'screen',
+                filter: 'drop-shadow(0 0 30px rgba(255, 165, 0, 0.5))'
+              }}
             />
           </div>
           
           {/* Animated subtitle */}
           <div className={`transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <p className="text-xl sm:text-2xl md:text-3xl text-muted-foreground font-medium mb-1 tracking-wide">
+            <p className="text-xl sm:text-2xl md:text-3xl text-muted-foreground font-medium tracking-wide">
               Turn Knowledge Into Cash
             </p>
             <p className="text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto leading-relaxed">
