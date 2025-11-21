@@ -110,19 +110,18 @@ const Splash = () => {
 
         {/* Enhanced Quiz2cash Title with subtitle */}
         <div className={`transition-all duration-1500 transform ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-20 opacity-0 scale-90'}`}>
-          <div className="relative mb-4">
+          <div className="relative mb-2">
             <img 
               src="/quiz2cashlogo1-removebg-preview.png" 
               alt="Quiz2cash" 
               className="w-64 sm:w-80 md:w-96 lg:w-[32rem] mx-auto animate-neon-pulse drop-shadow-2xl"
+              style={{ filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.3))' }}
             />
-            {/* Animated underline */}
-            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-primary rounded-full animate-pulse"></div>
           </div>
           
           {/* Animated subtitle */}
           <div className={`transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-            <p className="text-xl sm:text-2xl md:text-3xl text-muted-foreground font-medium mb-2 tracking-wide">
+            <p className="text-xl sm:text-2xl md:text-3xl text-muted-foreground font-medium mb-1 tracking-wide">
               Turn Knowledge Into Cash
             </p>
             <p className="text-sm sm:text-base text-muted-foreground/80 max-w-md mx-auto leading-relaxed">
@@ -170,6 +169,19 @@ const Splash = () => {
               <Zap className="w-4 h-4 text-accent" />
               <span>Challenge Friends</span>
             </div>
+          </div>
+        </div>
+
+        {/* Footer Links */}
+        <div className={`mt-8 transition-all duration-1000 delay-1200 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+          <div className="flex justify-center items-center flex-wrap gap-4 text-sm text-muted-foreground">
+            <a href="/about" className="hover:text-primary transition-colors">About</a>
+            <div className="w-px h-4 bg-border"></div>
+            <a href="/how-to-play" className="hover:text-primary transition-colors">How to Play</a>
+            <div className="w-px h-4 bg-border"></div>
+            <a href="/disclaimer" className="hover:text-primary transition-colors">Disclaimer</a>
+            <div className="w-px h-4 bg-border"></div>
+            <a href="/contact" className="hover:text-primary transition-colors">Contact</a>
           </div>
         </div>
       </div>

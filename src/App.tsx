@@ -35,6 +35,10 @@ import AdminAnnouncements from "./pages/AdminAnnouncements";
 import QuizPlayEnhanced from "./pages/QuizPlayEnhanced";
 import AdminGuard from "./components/guards/AdminGuard";
 import EmailVerify from "./pages/EmailVerify";
+import About from "./pages/About";
+import HowToPlay from "./pages/HowToPlay";
+import Disclaimer from "./pages/Disclaimer";
+import Contact from "./pages/Contact";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +58,10 @@ const App = () => (
                 <Route path="register" element={<Register />} />
                 <Route path="login" element={<Login />} />
                 <Route path="email-verify" element={<EmailVerify />} />
+                <Route path="about" element={<About />} />
+                <Route path="how-to-play" element={<HowToPlay />} />
+                <Route path="disclaimer" element={<Disclaimer />} />
+                <Route path="contact" element={<Contact />} />
                 <Route path="home" element={<Home />} />
                 <Route path="wallet" element={<Wallet />} />
                 <Route path="wallet/deposit" element={<Deposit />} />
