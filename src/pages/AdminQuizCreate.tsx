@@ -11,7 +11,7 @@ import { ArrowLeft, Plus, Trash, MagicWand } from '@phosphor-icons/react';
 import { useToast } from '@/hooks/use-toast';
 import { Question, QuizReward } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { nairaTodiamonds } from '@/lib/currency';
+import { nairaTodiamonds, diamondsToNaira } from '@/lib/currency';
 
 export default function AdminQuizCreate() {
   const { user, hydrated } = useAuth();
@@ -87,10 +87,10 @@ export default function AdminQuizCreate() {
           title: data.title,
           description: data.description || '',
           category: '', // Add category to DB if needed
-          entryFee: data.entry_fee,
-          totalPrizeAmount: data.prize_pool,
+          entryFee: diamondsToNaira(data.entry_fee),
+          totalPrizeAmount: diamondsToNaira(data.prize_pool),
           numberOfQuestions: (data.questions as any)?.length || 5,
-          penaltyAmount: data.penalty_amount
+          penaltyAmount: diamondsToNaira(data.penalty_amount)
         });
 
         if (data.questions) {
