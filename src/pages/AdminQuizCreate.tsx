@@ -94,7 +94,14 @@ export default function AdminQuizCreate() {
         });
 
         if (data.questions) {
-          setQuestions(data.questions as any);
+          // Ensure correctOption is a number when loading
+          const normalizedQuestions = (data.questions as any[]).map((q: any) => ({
+            ...q,
+            correctOption: typeof q.correctOption === 'number' ? q.correctOption : parseInt(q.correctOption) || 0,
+            options: Array.isArray(q.options) ? q.options : ['', '', '', ''],
+            timeLimit: typeof q.timeLimit === 'number' ? q.timeLimit : 30
+          }));
+          setQuestions(normalizedQuestions);
         }
 
         if (data.reward_progression) {
@@ -371,8 +378,8 @@ export default function AdminQuizCreate() {
           id: `q${idx + 1}`,
           text: q.text,
           options: q.options,
-          correctOption: q.correctOption,
-          timeLimit: q.timeLimit
+          correctOption: Number(q.correctOption), // Ensure it's a number
+          timeLimit: Number(q.timeLimit)
         })) as any,
         reward_progression: rewards as any,
         penalty_amount: nairaTodiamonds(formData.penaltyAmount)
