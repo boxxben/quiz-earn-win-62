@@ -196,7 +196,9 @@ export default function Deposit() {
 
     const { error } = await supabase
       .from('transactions')
-      .update({ status: 'pending_approval' })
+      .update({ 
+        description: `${pendingDeposit.paystack_reference} - User confirmed payment, awaiting admin verification`
+      })
       .eq('id', pendingDeposit.id);
 
     if (error) {
