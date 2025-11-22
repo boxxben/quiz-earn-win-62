@@ -117,7 +117,8 @@ export default function AdminQuizCreate() {
   // Generate progressive rewards automatically
   React.useEffect(() => {
     const newRewards: QuizReward[] = [];
-    const baseReward = Math.floor(formData.totalPrizeAmount / formData.numberOfQuestions / 2);
+    const prizePoolInDiamonds = nairaTodiamonds(formData.totalPrizeAmount);
+    const baseReward = Math.floor(prizePoolInDiamonds / formData.numberOfQuestions / 2);
     
     for (let i = 1; i <= formData.numberOfQuestions; i++) {
       const multiplier = 1 + (i - 1) * 0.3; // 30% increase per question
@@ -359,8 +360,8 @@ export default function AdminQuizCreate() {
       const quizData = {
         title: formData.title,
         description: formData.description,
-        entry_fee: formData.entryFee,
-        prize_pool: formData.totalPrizeAmount,
+        entry_fee: nairaTodiamonds(formData.entryFee),
+        prize_pool: nairaTodiamonds(formData.totalPrizeAmount),
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
         duration: 15,
@@ -374,7 +375,7 @@ export default function AdminQuizCreate() {
           timeLimit: q.timeLimit
         })) as any,
         reward_progression: rewards as any,
-        penalty_amount: formData.penaltyAmount
+        penalty_amount: nairaTodiamonds(formData.penaltyAmount)
       };
 
       if (isEditMode) {
