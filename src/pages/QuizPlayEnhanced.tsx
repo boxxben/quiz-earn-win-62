@@ -184,9 +184,8 @@ export default function QuizPlayEnhanced() {
           sample: quizData.questions[0]
         });
         
-        // Calculate total potential earnings
-        const totalPossible = normalizedRewards.reduce((sum: number, r: any) => sum + (r.correctReward || 0), 0);
-        setPotentialEarnings(totalPossible);
+        // Set initial prize pool as potential earnings
+        setPotentialEarnings(data.prize_pool || 0);
         
         setQuiz(quizData);
         if (quizData.questions.length > 0) {
@@ -260,9 +259,8 @@ export default function QuizPlayEnhanced() {
 
     const answeredCount = currentQuestionIndex + 1;
     const fullTotal = randomizedQuestions.length;
-    const allAnswered = answeredCount === fullTotal;
-    const allCorrect = allAnswered && correctCount === fullTotal;
-    const finalReward = allCorrect ? potentialEarnings : 0;
+    // Final reward is the remaining prize pool
+    const finalReward = potentialEarnings;
 
     navigate(`/quiz/${quizId}/results`, {
       state: {
@@ -365,18 +363,13 @@ export default function QuizPlayEnhanced() {
     // Animate feedback
     if (isCorrect) {
       setFeedbackAnimation('animate-pulse bg-green-100');
-      const reward = currentReward?.correctReward || 0;
       
       // Play correct sound
       playCorrectSound();
       
-      // Show diamond overlay animation
-      setDiamondOverlay({ show: true, amount: reward, type: 'correct' });
-      setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
-      
       toast({
         title: "Correct! ✅",
-        description: `+${formatDiamonds(reward)} potential reward`,
+        description: `Prize pool intact: ${formatDiamonds(potentialEarnings)}`,
         className: "border-green-500 bg-green-50 text-green-800"
       });
     } else {
@@ -384,41 +377,24 @@ export default function QuizPlayEnhanced() {
       const newIncorrectCount = incorrectCount + 1;
       setIncorrectCount(newIncorrectCount);
       
-      // Deduct from potential earnings on each wrong answer
-      const penaltyPerWrong = currentReward?.correctReward || 0;
-      setPotentialEarnings(prev => Math.max(0, prev - penaltyPerWrong));
+      // Deduct penalty from prize pool on wrong answer
+      const penalty = quiz.penaltyAmount || 0;
+      setPotentialEarnings(prev => Math.max(0, prev - penalty));
       
       // Play incorrect sound
       playIncorrectSound();
       
       // Show penalty
-      setDiamondOverlay({ show: true, amount: -penaltyPerWrong, type: 'incorrect' });
+      setDiamondOverlay({ show: true, amount: -penalty, type: 'incorrect' });
       setTimeout(() => setDiamondOverlay({ show: false, amount: 0, type: '' }), 2000);
       
       toast({
         title: "Incorrect ❌",
-        description: `-${formatDiamonds(penaltyPerWrong)} from potential earnings`,
+        description: `-${formatDiamonds(penalty)} from prize pool`,
         variant: "destructive"
       });
       
-      // Check if first 3 questions are all wrong
-      if (currentQuestionIndex < 3 && newIncorrectCount === currentQuestionIndex + 1) {
-        // All questions so far are wrong
-        if (currentQuestionIndex === 2) {
-          // First 3 questions all wrong - end quiz
-          setTimeout(async () => {
-            toast({
-              title: "Quiz Ended",
-              description: "You failed the first 3 questions. Better luck next time!",
-              variant: "destructive"
-            });
-            await finishQuizNow();
-          }, 2000);
-          return;
-        }
-      }
-      
-      // End quiz if more than 3 wrong answers total
+      // End quiz if more than 3 wrong answers
       if (newIncorrectCount > 3) {
         setTimeout(async () => {
           toast({
@@ -449,11 +425,11 @@ export default function QuizPlayEnhanced() {
         ? correctCount + 1 
         : correctCount;
       
-      const allCorrect = finalCorrectCount === totalQuestions;
-      const finalReward = allCorrect ? potentialEarnings : 0;
+      // Final reward is the remaining prize pool
+      const finalReward = potentialEarnings;
       
-      // Show win animation and play sound if all questions correct
-      if (allCorrect) {
+      // Show win animation if has earnings
+      if (finalReward > 0) {
         setShowWinAnimation(true);
         playWinSound();
         setTimeout(() => {
