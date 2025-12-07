@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions } from '@/contexts/TransactionContext';
@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useQuizAvailability } from '@/contexts/QuizAvailabilityContext';
 import { formatCurrency, formatDiamonds } from '@/lib/currency';
@@ -17,7 +19,9 @@ import {
   Coins, 
   Trophy,
   CheckCircle,
-  Info
+  Info,
+  Crown,
+  Lock
 } from '@phosphor-icons/react';
 
 export default function QuizDetail() {
@@ -30,6 +34,10 @@ export default function QuizDetail() {
   const [quiz, setQuiz] = React.useState<any>(null);
   const [hasAttempted, setHasAttempted] = React.useState(false);
   const [isCheckingAttempt, setIsCheckingAttempt] = React.useState(true);
+  const [customEntryFee, setCustomEntryFee] = useState<number>(0);
+  const [isVipQuiz, setIsVipQuiz] = useState(false);
+
+  const isVipActive = user?.isVip && user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
 
   React.useEffect(() => {
     const fetchQuizAndAttempt = async () => {
@@ -48,8 +56,11 @@ export default function QuizDetail() {
           duration: quizData.duration,
           status: quizData.status,
           isAvailable: quizData.is_available,
-          penaltyAmount: quizData.penalty_amount
+          penaltyAmount: quizData.penalty_amount,
+          isVip: quizData.is_vip
         });
+        setIsVipQuiz(quizData.is_vip);
+        setCustomEntryFee(quizData.entry_fee);
       }
       
       if (user) {
@@ -94,10 +105,27 @@ export default function QuizDetail() {
     return `${minutes}m`;
   };
 
+  const getEffectiveEntryFee = () => {
+    if (isVipQuiz && isVipActive) {
+      return customEntryFee;
+    }
+    return quiz.entryFee;
+  };
+
+  const getEffectivePrizePool = () => {
+    if (isVipQuiz && isVipActive) {
+      return customEntryFee * 2; // 2x the entry fee for VIP quizzes
+    }
+    return quiz.prizePool;
+  };
+
   const canJoin = () => {
     if (!user) return false;
     if (hasAttempted) return false;
-    if (user.balance < quiz.entryFee) return false;
+    // VIP quiz restriction
+    if (isVipQuiz && !isVipActive) return false;
+    const effectiveFee = getEffectiveEntryFee();
+    if (user.balance < effectiveFee) return false;
     if (!quiz.isAvailable) return false;
     if (quiz.status === 'completed') return false;
     return true;
@@ -106,16 +134,19 @@ export default function QuizDetail() {
   const handleJoinQuiz = async () => {
     if (!canJoin()) return;
     
-    if (user!.balance < quiz.entryFee) {
+    const effectiveFee = getEffectiveEntryFee();
+    const effectivePrize = getEffectivePrizePool();
+    
+    if (user!.balance < effectiveFee) {
       toast({
         title: 'Insufficient Balance',
-        description: `You need ${formatDiamonds(quiz.entryFee)} to join this quiz. Please add money to your wallet.`,
+        description: `You need ${formatDiamonds(effectiveFee)} to join this quiz. Please add money to your wallet.`,
         variant: 'destructive'
       });
       return;
     }
 
-    const newBalance = user!.balance - quiz.entryFee;
+    const newBalance = user!.balance - effectiveFee;
 
     // Update balance in database immediately
     const { error: balanceError } = await supabase
@@ -132,17 +163,23 @@ export default function QuizDetail() {
       return;
     }
 
-    // Mark quiz as unavailable for other users
+    // Mark quiz as unavailable and update entry fee/prize if VIP
+    const quizUpdate: any = { is_available: false };
+    if (isVipQuiz && isVipActive) {
+      quizUpdate.entry_fee = effectiveFee;
+      quizUpdate.prize_pool = effectivePrize;
+    }
+    
     await supabase
       .from('quizzes')
-      .update({ is_available: false })
+      .update(quizUpdate)
       .eq('id', quizId);
 
     // Record transaction in database
     await supabase.from('transactions').insert({
       user_id: user!.id,
       type: 'quiz_fee',
-      amount: -quiz.entryFee,
+      amount: -effectiveFee,
       status: 'completed',
       description: `Quiz entry fee - ${quiz.title}`
     });
@@ -151,7 +188,7 @@ export default function QuizDetail() {
     updateUser({ balance: newBalance });
     addTransaction({
       type: 'quiz_fee',
-      amount: -quiz.entryFee,
+      amount: -effectiveFee,
       status: 'completed',
       description: `Quiz entry fee - ${quiz.title}`
     });
@@ -178,7 +215,15 @@ export default function QuizDetail() {
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex-1">
-                <CardTitle className="text-xl mb-2">{quiz.title}</CardTitle>
+                <div className="flex items-center gap-2 mb-2">
+                  <CardTitle className="text-xl">{quiz.title}</CardTitle>
+                  {isVipQuiz && (
+                    <Badge className="bg-yellow-500 text-yellow-950">
+                      <Crown size={12} className="mr-1" weight="fill" />
+                      VIP
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-muted-foreground mb-3">{quiz.description}</p>
               </div>
               {quiz.status === 'active' && (
@@ -187,10 +232,52 @@ export default function QuizDetail() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* VIP Quiz - Custom Entry Fee */}
+            {isVipQuiz && isVipActive && (
+              <Card className="border-yellow-500/30 bg-yellow-500/5">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-yellow-600">
+                    <Crown size={20} weight="fill" />
+                    <span className="font-semibold">VIP Privilege - Set Your Entry Fee</span>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="entryFee">Entry Fee (Diamonds)</Label>
+                    <Input
+                      id="entryFee"
+                      type="number"
+                      min={1}
+                      max={user?.balance || 100}
+                      value={customEntryFee}
+                      onChange={(e) => setCustomEntryFee(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="border-yellow-500/30"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Prize Pool: <span className="font-bold text-yellow-600">{formatDiamonds(customEntryFee * 2)}</span> (2x entry fee)
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* VIP Quiz - Not a VIP user warning */}
+            {isVipQuiz && !isVipActive && (
+              <Card className="border-yellow-500/30 bg-yellow-500/5">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-yellow-600 mb-2">
+                    <Lock size={20} />
+                    <span className="font-semibold">VIP Only Quiz</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    This quiz is exclusive to VIP members. Upgrade to VIP to access this quiz and set your own entry fees!
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Prize Pool */}
             <div className="text-center p-4 bg-accent/10 rounded-lg">
               <Trophy size={32} className="mx-auto mb-2 text-accent" />
-              <p className="text-2xl font-bold text-accent">{formatDiamonds(quiz.prizePool)}</p>
+              <p className="text-2xl font-bold text-accent">{formatDiamonds(getEffectivePrizePool())}</p>
               <p className="text-sm text-muted-foreground">Total Prize Pool</p>
             </div>
 
@@ -198,7 +285,7 @@ export default function QuizDetail() {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 border rounded-lg">
                 <Coins size={20} className="mx-auto mb-1 text-primary" />
-                <p className="font-semibold">{formatDiamonds(quiz.entryFee)}</p>
+                <p className="font-semibold">{formatDiamonds(getEffectiveEntryFee())}</p>
                 <p className="text-xs text-muted-foreground">Entry Fee</p>
               </div>
               <div className="text-center p-3 border rounded-lg">
@@ -323,9 +410,12 @@ export default function QuizDetail() {
             onClick={handleJoinQuiz}
             disabled={!canJoin() || isCheckingAttempt}
             size="lg"
-            className="w-full"
+            className={`w-full ${isVipQuiz ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600' : ''}`}
           >
-            {isCheckingAttempt ? 'Loading...' : hasAttempted ? 'Already Attempted' : `${quiz.status === 'active' ? 'Join Now' : 'Join Quiz'} - ${formatDiamonds(quiz.entryFee)}`}
+            {isCheckingAttempt ? 'Loading...' : 
+             hasAttempted ? 'Already Attempted' : 
+             isVipQuiz && !isVipActive ? 'VIP Only' :
+             `${quiz.status === 'active' ? 'Join Now' : 'Join Quiz'} - ${formatDiamonds(getEffectiveEntryFee())}`}
           </Button>
         </div>
       </div>
