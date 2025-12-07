@@ -338,7 +338,8 @@ export default function AdminQuizCreate() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.description || !formData.category) {
+    // Category is only required for new quizzes (not stored in DB currently)
+    if (!formData.title || !formData.description || (!isEditMode && !formData.category)) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
