@@ -110,7 +110,7 @@ const Splash = () => {
 
         {/* Enhanced Quiz2cash Title with subtitle */}
         <div className={`transition-all duration-1500 transform ${isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-20 opacity-0 scale-90'}`}>
-          <div className="relative mb-2">
+          <div className="relative">
             <img 
               src="/quiz2cashlogo1-removebg-preview.png" 
               alt="Quiz2cash" 
@@ -119,7 +119,7 @@ const Splash = () => {
           </div>
           
           {/* Animated subtitle */}
-          <div className={`mt-4 transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+          <div className={`transition-all duration-1000 delay-300 transform ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground font-medium tracking-wide">
               Turn Knowledge Into Cash
             </p>
