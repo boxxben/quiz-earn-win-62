@@ -65,7 +65,9 @@ export default function Quizzes() {
     }
   };
 
-  const handleJoinQuiz = async (quizId: string, entryFee: number) => {
+  const isVipActive = user?.isVip && user?.vipExpiresAt && new Date(user.vipExpiresAt) > new Date();
+
+  const handleJoinQuiz = async (quizId: string, entryFee: number, isVipQuiz: boolean = false) => {
     if (!user) {
       toast({
         title: "Login Required",
@@ -73,6 +75,12 @@ export default function Quizzes() {
         variant: "destructive"
       });
       navigate('/login');
+      return;
+    }
+
+    // VIP quiz restriction - redirect to detail page
+    if (isVipQuiz) {
+      navigate(`/quiz/${quizId}`);
       return;
     }
 
@@ -240,10 +248,10 @@ export default function Quizzes() {
                       </div>
                       <Button 
                         size="sm" 
-                        onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee)}
-                        className="min-w-[80px]"
+                        onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee, quiz.isVip)}
+                        className={`min-w-[80px] ${quiz.isVip ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600' : ''}`}
                       >
-                        Join Now
+                        {quiz.isVip ? (isVipActive ? 'Play VIP' : 'VIP Only') : 'Join Now'}
                       </Button>
                     </div>
                   </CardContent>
@@ -298,11 +306,12 @@ export default function Quizzes() {
                       </p>
                     </div>
                     <Button 
-                      variant="outline" 
+                      variant={quiz.isVip ? "default" : "outline"} 
                       size="sm" 
-                      onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee)}
+                      onClick={() => handleJoinQuiz(quiz.id, quiz.entryFee, quiz.isVip)}
+                      className={quiz.isVip ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600' : ''}
                     >
-                      Join Quiz
+                      {quiz.isVip ? (isVipActive ? 'Play VIP' : 'VIP Only') : 'Join Quiz'}
                     </Button>
                   </div>
                 </CardContent>

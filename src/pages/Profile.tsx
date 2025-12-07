@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Gear, SignOut, Trophy, Coins, ChartBar, Clock } from '@phosphor-icons/react';
+import VipUpgradeCard from '@/components/VipUpgradeCard';
 
 export default function Profile() {
   const { user, logout } = useAuth();
@@ -66,7 +67,8 @@ export default function Profile() {
               </Card>
             </div>
 
-            {/* Menu Items */}
+            {/* VIP Upgrade Card */}
+            <VipUpgradeCard />
             <div className="space-y-3">
               <Button asChild variant="outline" className="w-full justify-start h-12">
                 <Link to="/settings">

@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle();
 
               if (profile) {
+                const isVipActive = profile.is_vip && profile.vip_expires_at && new Date(profile.vip_expires_at) > new Date();
                 setUser({
                   id: profile.user_id,
                   name: profile.name,
@@ -54,7 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   totalEarnings: profile.total_earnings,
                   quizzesPlayed: profile.quizzes_played,
                   quizzesWon: profile.quizzes_won,
-                  rank: profile.rank
+                  rank: profile.rank,
+                  isVip: isVipActive,
+                  vipExpiresAt: profile.vip_expires_at ? new Date(profile.vip_expires_at) : null
                 });
               } else if (!error || error.code === 'PGRST116') {
                 // Profile doesn't exist, create it from user metadata
@@ -87,7 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     totalEarnings: 0,
                     quizzesPlayed: 0,
                     quizzesWon: 0,
-                    rank: isAdmin ? 1 : 999
+                    rank: isAdmin ? 1 : 999,
+                    isVip: false,
+                    vipExpiresAt: null
                   });
                 }
               }

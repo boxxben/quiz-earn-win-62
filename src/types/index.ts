@@ -10,6 +10,8 @@ export interface User {
   rank: number;
   avatar?: string;
   isAdmin?: boolean;
+  isVip?: boolean;
+  vipExpiresAt?: Date | null;
 }
 
 export interface Quiz {

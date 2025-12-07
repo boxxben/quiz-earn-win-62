@@ -48,6 +48,7 @@ export type Database = {
           id: string
           is_admin: boolean | null
           is_suspended: boolean
+          is_vip: boolean
           name: string
           quizzes_played: number
           quizzes_won: number
@@ -55,6 +56,7 @@ export type Database = {
           total_earnings: number
           updated_at: string
           user_id: string
+          vip_expires_at: string | null
         }
         Insert: {
           avatar?: string | null
@@ -65,6 +67,7 @@ export type Database = {
           id?: string
           is_admin?: boolean | null
           is_suspended?: boolean
+          is_vip?: boolean
           name: string
           quizzes_played?: number
           quizzes_won?: number
@@ -72,6 +75,7 @@ export type Database = {
           total_earnings?: number
           updated_at?: string
           user_id: string
+          vip_expires_at?: string | null
         }
         Update: {
           avatar?: string | null
@@ -82,6 +86,7 @@ export type Database = {
           id?: string
           is_admin?: boolean | null
           is_suspended?: boolean
+          is_vip?: boolean
           name?: string
           quizzes_played?: number
           quizzes_won?: number
@@ -89,6 +94,7 @@ export type Database = {
           total_earnings?: number
           updated_at?: string
           user_id?: string
+          vip_expires_at?: string | null
         }
         Relationships: []
       }
