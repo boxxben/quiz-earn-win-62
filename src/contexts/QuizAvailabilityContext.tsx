@@ -52,7 +52,8 @@ export function QuizAvailabilityProvider({ children }: { children: React.ReactNo
           isAvailable: quiz.is_available,
           questions: quiz.questions as any[],
           rewardProgression: quiz.reward_progression as any[],
-          penaltyAmount: quiz.penalty_amount
+          penaltyAmount: quiz.penalty_amount,
+          isVip: quiz.is_vip || false
         }));
       setAvailableQuizzes(quizzes);
     }

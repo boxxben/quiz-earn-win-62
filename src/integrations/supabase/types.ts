@@ -142,6 +142,7 @@ export type Database = {
           entry_fee: number
           id: string
           is_available: boolean
+          is_vip: boolean
           penalty_amount: number
           prize_pool: number
           questions: Json
@@ -159,6 +160,7 @@ export type Database = {
           entry_fee?: number
           id?: string
           is_available?: boolean
+          is_vip?: boolean
           penalty_amount?: number
           prize_pool?: number
           questions?: Json
@@ -176,6 +178,7 @@ export type Database = {
           entry_fee?: number
           id?: string
           is_available?: boolean
+          is_vip?: boolean
           penalty_amount?: number
           prize_pool?: number
           questions?: Json
