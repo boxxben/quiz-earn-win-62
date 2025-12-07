@@ -37,7 +37,8 @@ export default function AdminQuizCreate() {
     entryFee: 500,
     totalPrizeAmount: 5000,
     numberOfQuestions: 5,
-    penaltyAmount: 50
+    penaltyAmount: 50,
+    isVip: false
   });
 
   const [questions, setQuestions] = useState<Partial<Question>[]>([
@@ -90,7 +91,8 @@ export default function AdminQuizCreate() {
           entryFee: diamondsToNaira(data.entry_fee),
           totalPrizeAmount: diamondsToNaira(data.prize_pool),
           numberOfQuestions: (data.questions as any)?.length || 5,
-          penaltyAmount: diamondsToNaira(data.penalty_amount)
+          penaltyAmount: diamondsToNaira(data.penalty_amount),
+          isVip: data.is_vip || false
         });
 
         if (data.questions) {
@@ -382,7 +384,8 @@ export default function AdminQuizCreate() {
           timeLimit: Number(q.timeLimit)
         })) as any,
         reward_progression: rewards as any,
-        penalty_amount: nairaTodiamonds(formData.penaltyAmount)
+        penalty_amount: nairaTodiamonds(formData.penaltyAmount),
+        is_vip: formData.isVip
       };
 
       if (isEditMode) {
@@ -589,6 +592,24 @@ export default function AdminQuizCreate() {
                     min="0"
                   />
                 </div>
+              </div>
+              
+              {/* VIP Toggle */}
+              <div className="flex items-center justify-between p-4 border border-accent/30 rounded-lg bg-accent/5">
+                <div>
+                  <Label htmlFor="isVip" className="text-base font-semibold">VIP Quiz</Label>
+                  <p className="text-sm text-muted-foreground">Mark this quiz as exclusive VIP content</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="isVip"
+                    checked={formData.isVip}
+                    onChange={(e) => handleInputChange('isVip', e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-accent peer-focus:ring-2 peer-focus:ring-accent/50 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full"></div>
+                </label>
               </div>
           </CardContent>
         </Card>

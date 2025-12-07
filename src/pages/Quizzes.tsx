@@ -17,7 +17,8 @@ import {
   Users, 
   Coins, 
   Fire,
-  FunnelSimple
+  FunnelSimple,
+  Crown
 } from '@phosphor-icons/react';
 
 const entryFees = ['All', '0-10', '11-20', '21-100', '100+'];
@@ -200,12 +201,18 @@ export default function Quizzes() {
             </div>
             <div className="space-y-3">
               {activeQuizzes.map(quiz => (
-                <Card key={quiz.id} className="border-accent/30 bg-accent/5 hover:shadow-md transition-shadow">
+                <Card key={quiz.id} className={`border-accent/30 bg-accent/5 hover:shadow-md transition-shadow ${quiz.isVip ? 'ring-2 ring-amber-400/50' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <div className="flex items-center mb-2">
                           <h3 className="font-semibold text-foreground mr-2">{quiz.title}</h3>
+                          {quiz.isVip && (
+                            <Badge className="bg-gradient-to-r from-amber-400 to-amber-600 text-white mr-2 animate-pulse">
+                              <Crown size={12} className="mr-1" />
+                              VIP
+                            </Badge>
+                          )}
                           <Badge className="bg-accent text-accent-foreground">LIVE</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
@@ -251,12 +258,18 @@ export default function Quizzes() {
           <h2 className="text-xl font-bold mb-4">Upcoming Quizzes</h2>
           <div className="space-y-3">
             {upcomingQuizzes.map(quiz => (
-              <Card key={quiz.id} className="hover:shadow-md transition-shadow">
+              <Card key={quiz.id} className={`hover:shadow-md transition-shadow ${quiz.isVip ? 'ring-2 ring-amber-400/50' : ''}`}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center mb-2">
                         <h3 className="font-semibold text-foreground mr-2">{quiz.title}</h3>
+                        {quiz.isVip && (
+                          <Badge className="bg-gradient-to-r from-amber-400 to-amber-600 text-white animate-pulse">
+                            <Crown size={12} className="mr-1" />
+                            VIP
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-3">{quiz.description}</p>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">

@@ -26,6 +26,7 @@ export interface Quiz {
   questions: Question[];
   rewardProgression: QuizReward[]; // Progressive rewards per question
   penaltyAmount: number; // Amount deducted for wrong answers
+  isVip?: boolean; // VIP quiz flag
 }
 
 export interface Question {
