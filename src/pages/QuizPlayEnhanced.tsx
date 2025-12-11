@@ -69,8 +69,7 @@ export default function QuizPlayEnhanced() {
             if (idx >= 0) return idx;
           }
           if (typeof val === 'number') {
-            // Support 1-based indices
-            if (val >= 1 && val <= 4) return val - 1;
+            // Only support 0-based indices (0-3) - don't convert 1-4
             if (val >= 0 && val <= 3) return val;
           }
           return 0;
