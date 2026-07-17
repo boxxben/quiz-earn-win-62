@@ -155,6 +155,18 @@ export default function AdminQuizCreate() {
     }
   }, [formData.numberOfQuestions]);
 
+  // Auto-generate questions with AI when category or count changes (not in edit mode)
+  React.useEffect(() => {
+    if (isEditMode) return;
+    if (!formData.category) return;
+    if (!formData.numberOfQuestions) return;
+    const timer = setTimeout(() => {
+      generateQuestionsWithAI();
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.category, formData.numberOfQuestions, isEditMode]);
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -708,56 +720,39 @@ export default function AdminQuizCreate() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {questions.every(q => !q.text) && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                {formData.category
+                  ? (isGenerating ? 'Generating questions with AI...' : 'Select a category to auto-generate questions.')
+                  : 'Select a category above and questions will be generated automatically by AI.'}
+              </p>
+            )}
             {questions.map((question, qIndex) => (
-              <div key={qIndex} className="border rounded-lg p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold">Question {qIndex + 1}</h4>
-                  <div className="text-sm text-muted-foreground">
-                    Reward: ₦{rewards[qIndex]?.correctReward.toLocaleString()}
+              question.text ? (
+                <div key={qIndex} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Question {qIndex + 1}</h4>
+                    <div className="text-sm text-muted-foreground">
+                      Reward: ₦{rewards[qIndex]?.correctReward.toLocaleString()}
+                    </div>
+                  </div>
+                  <p className="text-sm">{question.text}</p>
+                  <div className="space-y-1">
+                    {question.options?.map((option, oIndex) => (
+                      <div
+                        key={oIndex}
+                        className={`text-sm px-3 py-2 rounded border ${
+                          question.correctOption === oIndex
+                            ? 'border-accent bg-accent/10 font-medium'
+                            : 'border-border'
+                        }`}
+                      >
+                        {String.fromCharCode(65 + oIndex)}. {option}
+                      </div>
+                    ))}
                   </div>
                 </div>
-                
-                <div>
-                  <Label>Question Text</Label>
-                  <Textarea
-                    value={question.text || ''}
-                    onChange={(e) => handleQuestionChange(qIndex, 'text', e.target.value)}
-                    placeholder="Enter your question"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Answer Options</Label>
-                  {question.options?.map((option, oIndex) => (
-                    <div key={oIndex} className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        name={`correct-${qIndex}`}
-                        checked={question.correctOption === oIndex}
-                        onChange={() => handleQuestionChange(qIndex, 'correctOption', oIndex)}
-                        className="text-primary"
-                      />
-                      <Input
-                        value={option}
-                        onChange={(e) => handleOptionChange(qIndex, oIndex, e.target.value)}
-                        placeholder={`Option ${String.fromCharCode(65 + oIndex)}`}
-                        className={question.correctOption === oIndex ? 'border-accent' : ''}
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <Label>Time Limit (seconds)</Label>
-                  <Input
-                    type="number"
-                    value={question.timeLimit || 30}
-                    onChange={(e) => handleQuestionChange(qIndex, 'timeLimit', parseInt(e.target.value))}
-                    min="10"
-                    max="120"
-                  />
-                </div>
-              </div>
+              ) : null
             ))}
           </CardContent>
         </Card>
