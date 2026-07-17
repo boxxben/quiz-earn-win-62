@@ -176,7 +176,7 @@ export default function Wallet() {
               <Card>
                 <CardContent className="p-4 text-center">
                   <ArrowUp size={24} className="mx-auto mb-2 text-primary" />
-                  <p className="text-2xl font-bold text-primary">#{user?.rank || 999}</p>
+                  <p className="text-2xl font-bold text-primary">{user?.rank ? `#${user.rank}` : '—'}</p>
                   <p className="text-sm text-muted-foreground">Your Rank</p>
                 </CardContent>
               </Card>
