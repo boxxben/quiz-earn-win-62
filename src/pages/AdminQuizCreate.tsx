@@ -155,6 +155,18 @@ export default function AdminQuizCreate() {
     }
   }, [formData.numberOfQuestions]);
 
+  // Auto-generate questions with AI when category or count changes (not in edit mode)
+  React.useEffect(() => {
+    if (isEditMode) return;
+    if (!formData.category) return;
+    if (!formData.numberOfQuestions) return;
+    const timer = setTimeout(() => {
+      generateQuestionsWithAI();
+    }, 400);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.category, formData.numberOfQuestions, isEditMode]);
+
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
