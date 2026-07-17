@@ -25,20 +25,16 @@ export function QuizAvailabilityProvider({ children }: { children: React.ReactNo
       .order('created_at', { ascending: false });
 
     if (data && !error) {
-      // Get user's quiz attempts if logged in
-      let userAttempts: string[] = [];
-      if (user?.id) {
-        const { data: attempts } = await supabase
-          .from('quiz_attempts')
-          .select('quiz_id')
-          .eq('user_id', user.id);
-        
-        userAttempts = attempts?.map(a => a.quiz_id) || [];
-      }
+      // Get ALL quiz attempts (any user) - a quiz taken by anyone is removed for everyone
+      const { data: attempts } = await supabase
+        .from('quiz_attempts')
+        .select('quiz_id');
 
-      // Filter out quizzes the user has already taken
+      const takenQuizIds = new Set((attempts || []).map(a => a.quiz_id));
+
+      // Filter out quizzes any user has already taken
       const quizzes = data
-        .filter(quiz => !userAttempts.includes(quiz.id))
+        .filter(quiz => !takenQuizIds.has(quiz.id))
         .map(quiz => ({
           id: quiz.id,
           title: quiz.title,
