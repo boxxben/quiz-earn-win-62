@@ -176,7 +176,7 @@ export default function Wallet() {
               <Card>
                 <CardContent className="p-4 text-center">
                   <ArrowUp size={24} className="mx-auto mb-2 text-primary" />
-                  <p className="text-2xl font-bold text-primary">#{user?.rank || 999}</p>
+                  <p className="text-2xl font-bold text-primary">{user?.rank ? `#${user.rank}` : '—'}</p>
                   <p className="text-sm text-muted-foreground">Your Rank</p>
                 </CardContent>
               </Card>
@@ -208,25 +208,35 @@ export default function Wallet() {
             </Card>
 
             {/* Recent Activity Summary */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Quick Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-accent/5 rounded-lg">
-                    <p className="text-lg font-bold text-accent">{formatWalletCurrency(250)}</p>
-                    <p className="text-xs text-muted-foreground">{formatNaira(diamondsToNaira(250))}</p>
-                    <p className="text-sm text-muted-foreground">This Month</p>
-                  </div>
-                  <div className="text-center p-3 bg-primary/5 rounded-lg">
-                    <p className="text-lg font-bold text-primary">{formatWalletCurrency(904)}</p>
-                    <p className="text-xs text-muted-foreground">{formatNaira(diamondsToNaira(904))}</p>
-                    <p className="text-sm text-muted-foreground">All Time</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {(() => {
+              const txs = getTransactionsByUserId(user?.id || '');
+              const now = new Date();
+              const monthEarned = txs
+                .filter(t => t.type === 'quiz_reward' && t.status === 'completed' && t.amount > 0 && t.date.getMonth() === now.getMonth() && t.date.getFullYear() === now.getFullYear())
+                .reduce((s, t) => s + t.amount, 0);
+              const allTimeEarned = user?.totalEarnings || 0;
+              return (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Quick Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-3 bg-accent/5 rounded-lg">
+                        <p className="text-lg font-bold text-accent">{formatWalletCurrency(monthEarned)}</p>
+                        <p className="text-xs text-muted-foreground">{formatNaira(diamondsToNaira(monthEarned))}</p>
+                        <p className="text-sm text-muted-foreground">This Month</p>
+                      </div>
+                      <div className="text-center p-3 bg-primary/5 rounded-lg">
+                        <p className="text-lg font-bold text-primary">{formatWalletCurrency(allTimeEarned)}</p>
+                        <p className="text-xs text-muted-foreground">{formatNaira(diamondsToNaira(allTimeEarned))}</p>
+                        <p className="text-sm text-muted-foreground">All Time</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-6">
