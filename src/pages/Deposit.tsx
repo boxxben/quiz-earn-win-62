@@ -23,7 +23,7 @@ const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 export default function Deposit() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, refreshUser } = useAuth() as any;
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
 
   const [amount, setAmount] = useState('');
@@ -59,7 +59,9 @@ export default function Deposit() {
               ? 'This payment was already credited.'
               : `${data.diamonds}💎 added to your wallet.`,
           });
-          if (typeof refreshUser === 'function') await refreshUser();
+          if (typeof data.newBalance === 'number') {
+            await updateUser({ balance: data.newBalance });
+          }
         } else {
           toast({
             title: 'Payment Not Completed',
