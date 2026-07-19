@@ -109,7 +109,7 @@ export default function Deposit() {
           </Button>
           <h1 className="text-xl font-bold ml-4">Add Money</h1>
         </div>
-        <p className="text-primary-foreground/80">Top up your wallet instantly with Stripe</p>
+        <p className="text-primary-foreground/80">Top up your wallet instantly with Paystack</p>
       </div>
 
       <div className="px-6 py-6 space-y-6">
@@ -173,8 +173,8 @@ export default function Deposit() {
               </div>
 
               <Button type="submit" className="w-full" disabled={isLoading || !amount || availableSpace === 0}>
-                {isLoading ? 'Redirecting to Stripe...' :
-                  amount ? `Pay ${formatNaira(parseInt(amount))} with Stripe` : 'Enter amount to proceed'}
+                {isLoading ? 'Redirecting to Paystack...' :
+                  amount ? `Pay ${formatNaira(parseInt(amount))} with Paystack` : 'Enter amount to proceed'}
               </Button>
             </form>
           </CardContent>
@@ -186,8 +186,8 @@ export default function Deposit() {
             <div className="flex items-center space-x-3 p-3 border border-border rounded-lg">
               <CreditCard size={24} className="text-primary" />
               <div>
-                <p className="font-medium">Debit/Credit Card via Stripe</p>
-                <p className="text-sm text-muted-foreground">Visa, Mastercard, Verve — instant credit</p>
+              <p className="font-medium">Debit/Credit Card via Paystack</p>
+                <p className="text-sm text-muted-foreground">Visa, Mastercard, Verve, Bank Transfer — instant credit</p>
               </div>
             </div>
           </CardContent>
@@ -200,7 +200,7 @@ export default function Deposit() {
               <div>
                 <p className="font-medium text-green-800 dark:text-green-200 mb-1">🔒 Secure Payment</p>
                 <p className="text-sm text-green-700 dark:text-green-300">
-                  Payments are processed securely by Stripe. Your card details never touch our servers.
+                  Payments are processed securely by Paystack. Your card details never touch our servers.
                 </p>
               </div>
             </div>
