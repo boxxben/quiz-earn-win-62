@@ -35,21 +35,15 @@ export default function Deposit() {
   const availableSpace = maxBalance - currentBalance;
   const formatNaira = (a: number) => `₦${a.toLocaleString()}`;
 
-  // Verify after Stripe redirect
+  // Verify after Paystack redirect
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
-    const cancelled = searchParams.get('cancelled');
-    if (cancelled) {
-      toast({ title: 'Payment Cancelled', description: 'You cancelled the payment.', variant: 'destructive' });
-      setSearchParams({});
-      return;
-    }
-    if (!sessionId) return;
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    if (!reference) return;
     (async () => {
       setIsVerifying(true);
       try {
-        const { data, error } = await supabase.functions.invoke('stripe-verify-payment', {
-          body: { session_id: sessionId },
+        const { data, error } = await supabase.functions.invoke('paystack-verify', {
+          body: { reference },
         });
         if (error) throw error;
         if (data?.credited) {
@@ -94,7 +88,7 @@ export default function Deposit() {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('stripe-create-checkout', {
+      const { data, error } = await supabase.functions.invoke('paystack-initialize', {
         body: { amount: naira, origin: window.location.origin },
       });
       if (error) throw error;
