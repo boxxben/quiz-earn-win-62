@@ -20,6 +20,18 @@ const depositSchema = z.object({
 
 const quickAmounts = [1000, 2000, 5000, 10000, 20000, 50000];
 
+const getFunctionErrorMessage = async (error: any) => {
+  if (error?.context) {
+    try {
+      const body = await error.context.json();
+      return body?.error || body?.message || error.message;
+    } catch {
+      return error.message;
+    }
+  }
+  return error?.message;
+};
+
 export default function Deposit() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -95,7 +107,8 @@ export default function Deposit() {
       if (!data?.url) throw new Error('No checkout URL returned');
       window.location.href = data.url;
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message || 'Failed to start payment', variant: 'destructive' });
+      const message = await getFunctionErrorMessage(e);
+      toast({ title: 'Error', description: message || 'Failed to start payment', variant: 'destructive' });
       setIsLoading(false);
     }
   };
