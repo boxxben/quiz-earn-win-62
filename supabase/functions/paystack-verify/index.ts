@@ -65,13 +65,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Idempotency
-    const { data: existing } = await admin
-      .from("transactions")
-      .select("id")
-      .eq("paystack_reference", reference)
-      .maybeSingle();
-    if (existing) {
+    const naira = tx.amount / 100;
+    const diamonds = nairaToDiamonds(naira);
+
+    // Atomic idempotency: unique index on paystack_reference guarantees only
+    // one insert wins across concurrent invocations.
+    const { error: insErr } = await admin.from("transactions").insert({
+      user_id: user.id,
+      type: "deposit",
+      amount: diamonds,
+      status: "completed",
+      description: `Paystack deposit - ₦${naira.toLocaleString()} (${diamonds}💎)`,
+      paystack_reference: reference,
+    });
+
+    if (insErr) {
+      // Duplicate reference => already credited by another concurrent call
+      const isDup = (insErr as any).code === "23505" || /duplicate/i.test(insErr.message);
+      if (!isDup) throw insErr;
       const { data: profile } = await admin
         .from("profiles").select("balance").eq("user_id", user.id).single();
       return new Response(JSON.stringify({ credited: true, already: true, newBalance: profile?.balance }), {
@@ -79,9 +90,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const naira = tx.amount / 100;
-    const diamonds = nairaToDiamonds(naira);
-
+    // Only the winning insert credits the balance
     const { data: profile, error: pErr } = await admin
       .from("profiles").select("balance").eq("user_id", user.id).single();
     if (pErr) throw pErr;
@@ -90,15 +99,6 @@ Deno.serve(async (req) => {
     const { error: upErr } = await admin
       .from("profiles").update({ balance: newBalance }).eq("user_id", user.id);
     if (upErr) throw upErr;
-
-    await admin.from("transactions").insert({
-      user_id: user.id,
-      type: "deposit",
-      amount: diamonds,
-      status: "completed",
-      description: `Paystack deposit - ₦${naira.toLocaleString()} (${diamonds}💎)`,
-      paystack_reference: reference,
-    });
 
     return new Response(JSON.stringify({ credited: true, diamonds, newBalance }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
