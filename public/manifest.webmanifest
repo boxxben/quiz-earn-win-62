@@ -1,0 +1,15 @@
+{
+  "name": "Quiz2cash - Turn Knowledge Into Cash",
+  "short_name": "Quiz2cash",
+  "description": "Play quizzes and earn real money.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0F0A1F",
+  "theme_color": "#7C3AED",
+  "icons": [
+    { "src": "/logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/logo.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,1 @@
+UPDATE public.quizzes SET status = 'active', start_time = now() WHERE status = 'upcoming';
