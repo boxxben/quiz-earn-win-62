@@ -39,6 +39,7 @@ import About from "./pages/About";
 import HowToPlay from "./pages/HowToPlay";
 import Disclaimer from "./pages/Disclaimer";
 import Contact from "./pages/Contact";
+import InstallPrompt from "./components/InstallPrompt";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +48,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <InstallPrompt />
       <AuthProvider>
         <TransactionProvider>
           <NotificationProvider>
