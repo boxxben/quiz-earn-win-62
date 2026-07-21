@@ -17,26 +17,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: userData, error: userErr } = await supabaseAuth.auth.getUser();
-    if (userErr || !userData.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const user = userData.user;
-
     const paystackKey = Deno.env.get("PAYSTACK_SECRET_KEY");
+    if (!paystackKey) {
+      return new Response(JSON.stringify({ error: "Paystack not configured" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const res = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${paystackKey}` },
     });
@@ -54,11 +40,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (tx.metadata?.user_id && tx.metadata.user_id !== user.id) {
-      return new Response(JSON.stringify({ error: "User mismatch" }), {
-        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Resolve user id: prefer metadata (set at init), fallback to auth header
+    let userId: string | null = tx.metadata?.user_id || null;
+    if (!userId) {
+      const authHeader = req.headers.get("Authorization");
+      if (authHeader) {
+        const supabaseAuth = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const { data: userData } = await supabaseAuth.auth.getUser();
+        userId = userData.user?.id || null;
+      }
+    }
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Could not resolve user for this payment" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
