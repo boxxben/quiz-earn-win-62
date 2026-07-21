@@ -132,10 +132,9 @@ Requirements:
         }));
 
         const startTime = new Date();
-        startTime.setHours(startTime.getHours() + Math.floor(Math.random() * 24) + 1);
         const duration = Math.floor(Math.random() * 16) + 15;
         const endTime = new Date(startTime);
-        endTime.setMinutes(endTime.getMinutes() + duration);
+        endTime.setDate(endTime.getDate() + 30);
 
         const { data: savedQuiz, error: saveError } = await supabase
           .from('quizzes')
@@ -150,7 +149,7 @@ Requirements:
             questions,
             reward_progression: rewardProgression,
             penalty_amount: Math.max(1, Math.floor(entryFee * 0.1)),
-            status: 'upcoming',
+            status: 'active',
             is_available: true,
           })
           .select()
