@@ -51,9 +51,14 @@ export default function Deposit() {
   useEffect(() => {
     const reference = searchParams.get('reference') || searchParams.get('trxref');
     if (!reference) return;
+    if (!user) return; // wait until auth session is restored
     (async () => {
       setIsVerifying(true);
       try {
+        // Ensure a fresh session token is attached
+        const { data: sess } = await supabase.auth.getSession();
+        if (!sess.session) throw new Error('Please sign in again to verify payment.');
+
         const { data, error } = await supabase.functions.invoke('paystack-verify', {
           body: { reference },
         });
@@ -76,14 +81,16 @@ export default function Deposit() {
           });
         }
       } catch (e: any) {
-        toast({ title: 'Verification Failed', description: e.message, variant: 'destructive' });
+        const msg = await getFunctionErrorMessage(e);
+        toast({ title: 'Verification Failed', description: msg || e.message, variant: 'destructive' });
       } finally {
         setIsVerifying(false);
         setSearchParams({});
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
