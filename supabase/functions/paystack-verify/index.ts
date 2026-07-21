@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     // Atomic idempotency: unique index on paystack_reference guarantees only
     // one insert wins across concurrent invocations.
     const { error: insErr } = await admin.from("transactions").insert({
-      user_id: user.id,
+      user_id: userId,
       type: "deposit",
       amount: diamonds,
       status: "completed",
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
       const isDup = (insErr as any).code === "23505" || /duplicate/i.test(insErr.message);
       if (!isDup) throw insErr;
       const { data: profile } = await admin
-        .from("profiles").select("balance").eq("user_id", user.id).single();
+        .from("profiles").select("balance").eq("user_id", userId).single();
       return new Response(JSON.stringify({ credited: true, already: true, newBalance: profile?.balance }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -93,12 +93,12 @@ Deno.serve(async (req) => {
 
     // Only the winning insert credits the balance
     const { data: profile, error: pErr } = await admin
-      .from("profiles").select("balance").eq("user_id", user.id).single();
+      .from("profiles").select("balance").eq("user_id", userId).single();
     if (pErr) throw pErr;
 
     const newBalance = (profile?.balance || 0) + diamonds;
     const { error: upErr } = await admin
-      .from("profiles").update({ balance: newBalance }).eq("user_id", user.id);
+      .from("profiles").update({ balance: newBalance }).eq("user_id", userId);
     if (upErr) throw upErr;
 
     return new Response(JSON.stringify({ credited: true, diamonds, newBalance }), {
