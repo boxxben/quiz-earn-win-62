@@ -50,6 +50,8 @@ export default function AdminQuizzes() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [bulkEntryFee, setBulkEntryFee] = useState('100');
+  const [bulkPrizePool, setBulkPrizePool] = useState('1000');
 
   
   
