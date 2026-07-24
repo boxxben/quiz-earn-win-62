@@ -61,17 +61,17 @@ Return ONLY valid JSON (no markdown, no code fences) in this exact structure:
     {
       "text": "Question text",
       "options": ["Option A", "Option B", "Option C", "Option D"],
-      "correctOption": 0,
+      "answer": "The exact text of the correct option (must match one of the options verbatim)",
       "timeLimit": 35
     }
   ]
 }
 
 Requirements:
-- Questions must be CHALLENGING expert-level
+- Questions must be CHALLENGING expert-level and FACTUALLY CORRECT
 - Mix subtopics within ${category}
 - Each question has exactly 4 plausible options
-- correctOption is the 0-based index of the correct answer
+- "answer" MUST be a verbatim copy of the correct option string
 - timeLimit between 30-45 seconds
 - Title engaging and category-specific`;
 
