@@ -118,22 +118,38 @@ Requirements:
           continue;
         }
 
-        // Normalize questions
-        const questions = quizData.questions.slice(0, questionsPerQuiz).map((q: any) => ({
-          text: String(q.text || q.question || ''),
-          options: Array.isArray(q.options) ? q.options.slice(0, 4).map(String) : [],
-          correctOption: Number(q.correctOption ?? q.correct ?? 0),
-          timeLimit: Number(q.timeLimit) || 35,
-        })).filter((q: any) => q.text && q.options.length === 4);
+        // Normalize questions - resolve correctOption from "answer" text, letter, or index
+        const questions = quizData.questions.slice(0, questionsPerQuiz).map((q: any) => {
+          const options = Array.isArray(q.options) ? q.options.slice(0, 4).map((o: any) => String(o)) : [];
+          let correctOption = 0;
+          const ansRaw = q.answer ?? q.correct_answer ?? q.correctOption ?? q.correct;
+          if (typeof ansRaw === 'number' && ansRaw >= 0 && ansRaw <= 3) {
+            correctOption = ansRaw;
+          } else if (typeof ansRaw === 'string') {
+            const trimmed = ansRaw.trim();
+            const byText = options.findIndex((o: string) => o.trim().toLowerCase() === trimmed.toLowerCase());
+            if (byText >= 0) {
+              correctOption = byText;
+            } else {
+              const letterIdx = ['A','B','C','D'].indexOf(trimmed.toUpperCase());
+              if (letterIdx >= 0) correctOption = letterIdx;
+            }
+          }
+          return {
+            text: String(q.text || q.question || ''),
+            options,
+            correctOption,
+            timeLimit: Number(q.timeLimit) || 35,
+          };
+        }).filter((q: any) => q.text && q.options.length === 4);
 
         if (questions.length < 5) {
           console.error(`Quiz ${i + 1} has too few valid questions`);
           continue;
         }
 
-        const entryFeeNaira = (Math.floor(Math.random() * 9) + 2) * 50; // 100-500 naira
-        const entryFee = Math.floor(entryFeeNaira / 50); // diamonds
-        const totalPrize = entryFee * 8;
+        const entryFee = Math.max(1, Math.floor(feeNaira / 50)); // diamonds
+        const totalPrize = Math.max(1, Math.floor(prizeNaira / 50)); // diamonds
         const baseReward = Math.max(1, Math.floor(totalPrize / questions.length / 2));
 
         const rewardProgression = questions.map((_: any, idx: number) => ({
