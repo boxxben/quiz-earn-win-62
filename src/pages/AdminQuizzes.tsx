@@ -314,6 +314,34 @@ export default function AdminQuizzes() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="rounded-md border p-3 space-y-2">
+              <p className="text-sm font-medium">Bulk AI Quiz Settings</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Entry Fee (₦)</label>
+                  <Input
+                    type="number"
+                    min={50}
+                    step={50}
+                    value={bulkEntryFee}
+                    onChange={(e) => setBulkEntryFee(e.target.value)}
+                    disabled={isBulkGenerating}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Prize Pool (₦)</label>
+                  <Input
+                    type="number"
+                    min={50}
+                    step={50}
+                    value={bulkPrizePool}
+                    onChange={(e) => setBulkPrizePool(e.target.value)}
+                    disabled={isBulkGenerating}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Applied to every generated quiz. Multiples of ₦50.</p>
+            </div>
             <Button 
               variant="outline" 
               className="w-full justify-start"
