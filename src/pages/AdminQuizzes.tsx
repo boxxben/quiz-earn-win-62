@@ -108,12 +108,24 @@ export default function AdminQuizzes() {
   };
 
   const handleBulkGenerate = async () => {
+    const feeNaira = parseInt(bulkEntryFee);
+    const prizeNaira = parseInt(bulkPrizePool);
+    if (!feeNaira || feeNaira < 50 || feeNaira % 50 !== 0) {
+      toast({ title: 'Invalid entry fee', description: 'Must be a multiple of ₦50 (min ₦50).', variant: 'destructive' });
+      return;
+    }
+    if (!prizeNaira || prizeNaira < 50 || prizeNaira % 50 !== 0) {
+      toast({ title: 'Invalid prize pool', description: 'Must be a multiple of ₦50 (min ₦50).', variant: 'destructive' });
+      return;
+    }
     setIsBulkGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('bulk-generate-quizzes', {
         body: {
           numberOfQuizzes: 50,
-          questionsPerQuiz: Math.floor(Math.random() * 6) + 10 // 10-15 questions
+          questionsPerQuiz: Math.floor(Math.random() * 6) + 10, // 10-15 questions
+          entryFeeNaira: feeNaira,
+          prizePoolNaira: prizeNaira,
         }
       });
 
