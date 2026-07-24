@@ -50,6 +50,8 @@ export default function AdminQuizzes() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isBulkGenerating, setIsBulkGenerating] = useState(false);
+  const [bulkEntryFee, setBulkEntryFee] = useState('100');
+  const [bulkPrizePool, setBulkPrizePool] = useState('1000');
 
   
   
@@ -106,12 +108,24 @@ export default function AdminQuizzes() {
   };
 
   const handleBulkGenerate = async () => {
+    const feeNaira = parseInt(bulkEntryFee);
+    const prizeNaira = parseInt(bulkPrizePool);
+    if (!feeNaira || feeNaira < 50 || feeNaira % 50 !== 0) {
+      toast({ title: 'Invalid entry fee', description: 'Must be a multiple of ₦50 (min ₦50).', variant: 'destructive' });
+      return;
+    }
+    if (!prizeNaira || prizeNaira < 50 || prizeNaira % 50 !== 0) {
+      toast({ title: 'Invalid prize pool', description: 'Must be a multiple of ₦50 (min ₦50).', variant: 'destructive' });
+      return;
+    }
     setIsBulkGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('bulk-generate-quizzes', {
         body: {
           numberOfQuizzes: 50,
-          questionsPerQuiz: Math.floor(Math.random() * 6) + 10 // 10-15 questions
+          questionsPerQuiz: Math.floor(Math.random() * 6) + 10, // 10-15 questions
+          entryFeeNaira: feeNaira,
+          prizePoolNaira: prizeNaira,
         }
       });
 
@@ -300,6 +314,34 @@ export default function AdminQuizzes() {
             <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="rounded-md border p-3 space-y-2">
+              <p className="text-sm font-medium">Bulk AI Quiz Settings</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-muted-foreground">Entry Fee (₦)</label>
+                  <Input
+                    type="number"
+                    min={50}
+                    step={50}
+                    value={bulkEntryFee}
+                    onChange={(e) => setBulkEntryFee(e.target.value)}
+                    disabled={isBulkGenerating}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Prize Pool (₦)</label>
+                  <Input
+                    type="number"
+                    min={50}
+                    step={50}
+                    value={bulkPrizePool}
+                    onChange={(e) => setBulkPrizePool(e.target.value)}
+                    disabled={isBulkGenerating}
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">Applied to every generated quiz. Multiples of ₦50.</p>
+            </div>
             <Button 
               variant="outline" 
               className="w-full justify-start"
