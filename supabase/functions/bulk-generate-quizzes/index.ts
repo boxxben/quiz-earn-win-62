@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { numberOfQuizzes = 50, questionsPerQuiz = 12 } = await req.json();
+    const { numberOfQuizzes = 50, questionsPerQuiz = 12, entryFeeNaira, prizePoolNaira } = await req.json();
 
     if (numberOfQuizzes > 50) {
       return new Response(JSON.stringify({ error: 'Maximum 50 quizzes allowed per batch' }),
@@ -20,6 +20,16 @@ serve(async (req) => {
     }
     if (questionsPerQuiz < 10 || questionsPerQuiz > 15) {
       return new Response(JSON.stringify({ error: 'Questions per quiz must be between 10-15' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    const feeNaira = Number(entryFeeNaira);
+    const prizeNaira = Number(prizePoolNaira);
+    if (!feeNaira || feeNaira < 50 || feeNaira % 50 !== 0) {
+      return new Response(JSON.stringify({ error: 'Entry fee (Naira) must be a multiple of 50 and at least 50' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    if (!prizeNaira || prizeNaira < 50 || prizeNaira % 50 !== 0) {
+      return new Response(JSON.stringify({ error: 'Prize pool (Naira) must be a multiple of 50 and at least 50' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
